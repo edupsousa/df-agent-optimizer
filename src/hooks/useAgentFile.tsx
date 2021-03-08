@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useSetDraft, useTrackedState } from "../store";
+import { initialState, useSetDraft, useTrackedState } from "../store";
 
 export const useAgentFile = () => {
   const state = useTrackedState();
@@ -28,8 +28,10 @@ export const useAgentFile = () => {
 
   const deleteAgentFile = useCallback(() => {
     sessionStorage.removeItem("agentFile");
-    setAgentFileLoaded(false);
-  }, [setAgentFileLoaded]);
+    setDraft(() => {
+      return initialState;
+    });
+  }, [setDraft]);
 
   return { loadAgentFile, getAgentFile, deleteAgentFile, isAgentFileLoaded };
 };
