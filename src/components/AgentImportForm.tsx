@@ -1,15 +1,15 @@
 import React, { useState } from "react";
-import { Form, Col, Button } from "react-bootstrap";
-import { useAgentFile } from "../hooks/useAgentFile";
+import { Button, Col, Form } from "react-bootstrap";
+import useAgentStore from "../hooks/useAgentStore";
 
 export default function AgentImportForm() {
-  const { loadAgentFile } = useAgentFile();
+  const state = useAgentStore();
   const [zipFile, setZipFile] = useState<null | File>(null);
   const handleSubmit = async (ev: React.FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     ev.stopPropagation();
     if (zipFile === null) return;
-    await loadAgentFile(zipFile);
+    state.loadAgent(await readFile(zipFile));
   };
 
   const handleAgentFileChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,4 +41,13 @@ export default function AgentImportForm() {
       </Form.Row>
     </Form>
   );
+}
+
+async function readFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsBinaryString(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+  });
 }

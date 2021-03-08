@@ -4,16 +4,16 @@ import { Redirect, Route, Switch } from "wouter";
 import AgentImportForm from "./components/AgentImportForm";
 import AppNavBar from "./components/AppNavBar";
 import IntentList from "./components/IntentList";
-import { useAgentFile } from "./hooks/useAgentFile";
+import useAgentStore from "./hooks/useAgentStore";
 
 function App() {
-  const { isAgentFileLoaded } = useAgentFile();
+  const state = useAgentStore();
 
   return (
     <>
       <AppNavBar />
       <Container>
-        {isAgentFileLoaded() && (
+        {state.agentConfig && (
           <Switch>
             <Route path="/intents" component={IntentList} />
             <Route>
@@ -21,7 +21,7 @@ function App() {
             </Route>
           </Switch>
         )}
-        {!isAgentFileLoaded() && (
+        {!state.agentConfig && (
           <Switch>
             <Route path="/import" component={AgentImportForm} />
             <Route>

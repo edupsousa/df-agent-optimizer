@@ -1,21 +1,9 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Button, Nav, Navbar } from "react-bootstrap";
-import { useAgentConfig } from "../hooks/useAgentConfig";
-import { useAgentFile } from "../hooks/useAgentFile";
+import useAgentStore from "../hooks/useAgentStore";
 
 export default function AppNavBar() {
-  const { isAgentFileLoaded, deleteAgentFile } = useAgentFile();
-  const {
-    isAgentConfigLoaded,
-    getAgentConfig,
-    loadAgentConfig,
-  } = useAgentConfig();
-
-  useEffect(() => {
-    if (!isAgentConfigLoaded()) {
-      loadAgentConfig();
-    }
-  }, [isAgentConfigLoaded, loadAgentConfig]);
+  const state = useAgentStore();
 
   return (
     <Navbar bg="light" expand="lg" className="mb-3">
@@ -23,21 +11,17 @@ export default function AppNavBar() {
       <Navbar.Toggle aria-controls="basic-navbar-nav" />
       <Navbar.Collapse id="basic-navbar-nav">
         <Nav className="mr-auto">
-          {isAgentFileLoaded() && (
-            <Nav.Link href="#link">List Intents</Nav.Link>
-          )}
-          {!isAgentFileLoaded() && (
-            <Nav.Link href="#home">Import Agent</Nav.Link>
-          )}
+          {state.agentConfig && <Nav.Link href="#link">List Intents</Nav.Link>}
+          {!state.agentConfig && <Nav.Link href="#home">Import Agent</Nav.Link>}
         </Nav>
         <Navbar.Text>
-          Agent: {!isAgentConfigLoaded() && <span>None</span>}
-          {isAgentConfigLoaded() && (
+          Agent: {!state.agentConfig && <span>None</span>}
+          {state.agentConfig && (
             <span>
-              {getAgentConfig()?.displayName}
+              {state.agentConfig.displayName}
               <Button
                 variant="outline-dark ml-2"
-                onClick={() => deleteAgentFile()}
+                onClick={() => state.unloadAgent()}
               >
                 Unload Agent
               </Button>
