@@ -5,12 +5,12 @@ import IntentList from "./components/IntentList";
 import { useAgentFile } from "./hooks/useAgentFile";
 
 function App() {
-  const { getAgentFile, deleteAgentFile } = useAgentFile();
+  const { isAgentFileLoaded, deleteAgentFile } = useAgentFile();
 
   return (
     <Container>
       <AgentImportForm />
-      <span>Agent Loaded: {getAgentFile() != null ? "true" : "false"}</span>
+      <span>Agent Loaded: {isAgentFileLoaded() ? "true" : "false"}</span>
       <Button onClick={() => deleteAgentFile()} variant="danger">
         Delete Agent
       </Button>

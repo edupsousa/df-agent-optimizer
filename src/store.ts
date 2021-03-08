@@ -4,12 +4,12 @@ import produce, { Draft } from "immer";
 import { Intent } from "./types/Intent";
 
 export type State = {
-  agentFile: string | null;
+  agentFileLoaded: boolean;
   intentList: Intent[] | null;
 };
 
 const initialState: State = {
-  agentFile: sessionStorage.getItem("agentFile"),
+  agentFileLoaded: sessionStorage.getItem("agentFile") !== null,
   intentList: null,
 };
 

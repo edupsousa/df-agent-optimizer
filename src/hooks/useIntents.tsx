@@ -2,8 +2,10 @@ import { useCallback } from "react";
 import JSZip, { JSZipObject } from "jszip";
 import { useTrackedState, useSetDraft } from "../store";
 import { Intent } from "../types/Intent";
+import { useAgentFile } from "./useAgentFile";
 
 export const useIntents = () => {
+  const { getAgentFile } = useAgentFile();
   const state = useTrackedState();
   const setDraft = useSetDraft();
   const setIntentList = useCallback(
@@ -15,8 +17,9 @@ export const useIntents = () => {
     [setDraft]
   );
   const loadIntentList = async (): Promise<void> => {
-    if (state.agentFile === null) return;
-    const zipFile = await openZipFile(state.agentFile);
+    const agentFile = getAgentFile();
+    if (agentFile === null) return;
+    const zipFile = await openZipFile(agentFile);
     const intents = await getIntentsFromZipFile(zipFile);
     setIntentList(intents);
   };

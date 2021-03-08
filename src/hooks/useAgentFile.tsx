@@ -3,13 +3,15 @@ import { useSetDraft, useTrackedState } from "../store";
 
 export const useAgentFile = () => {
   const state = useTrackedState();
-  const getAgentFile = () => state.agentFile;
   const setDraft = useSetDraft();
 
-  const setAgentFile = useCallback(
-    (agentFile: string) => {
+  const isAgentFileLoaded = () => state.agentFileLoaded;
+  const getAgentFile = () => sessionStorage.getItem("agentFile");
+
+  const setAgentFileLoaded = useCallback(
+    (loaded: boolean) => {
       setDraft((draft) => {
-        draft.agentFile = agentFile;
+        draft.agentFileLoaded = loaded;
       });
     },
     [setDraft]
@@ -19,20 +21,17 @@ export const useAgentFile = () => {
     async (zipFile: File) => {
       const agentData = await importAgent(zipFile);
       sessionStorage.setItem("agentFile", agentData);
-      setAgentFile(agentData);
+      setAgentFileLoaded(true);
     },
-    [setAgentFile]
+    [setAgentFileLoaded]
   );
 
   const deleteAgentFile = useCallback(() => {
     sessionStorage.removeItem("agentFile");
-    setDraft((draft) => {
-      draft.agentFile = null;
-      draft.intentList = null;
-    });
-  }, [setDraft]);
+    setAgentFileLoaded(false);
+  }, [setAgentFileLoaded]);
 
-  return { loadAgentFile, getAgentFile, setAgentFile, deleteAgentFile };
+  return { loadAgentFile, getAgentFile, deleteAgentFile, isAgentFileLoaded };
 };
 
 const importAgent = (file: File): Promise<string> => {
