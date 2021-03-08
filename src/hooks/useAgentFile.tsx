@@ -8,7 +8,6 @@ export const useAgentFile = () => {
 
   const setAgentFile = useCallback(
     (agentFile: string) => {
-      sessionStorage.setItem("agentFile", agentFile);
       setDraft((draft) => {
         draft.agentFile = agentFile;
       });
@@ -19,6 +18,7 @@ export const useAgentFile = () => {
   const loadAgentFile = useCallback(
     async (zipFile: File) => {
       const agentData = await importAgent(zipFile);
+      sessionStorage.setItem("agentFile", agentData);
       setAgentFile(agentData);
     },
     [setAgentFile]
@@ -28,6 +28,7 @@ export const useAgentFile = () => {
     sessionStorage.removeItem("agentFile");
     setDraft((draft) => {
       draft.agentFile = null;
+      draft.intentList = null;
     });
   }, [setDraft]);
 
