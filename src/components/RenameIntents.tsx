@@ -118,10 +118,8 @@ export default function RenameIntents() {
           </Col>
         </Form.Group>
       </Form>
-      <ListGroup>
-        {intents && intents.map(renderIntent)}
-        {!intents && <li>No intents to show</li>}
-      </ListGroup>
+      Matched {intents.length} intents.
+      <ListGroup>{intents && intents.map(renderIntent)}</ListGroup>
     </div>
   );
 }
