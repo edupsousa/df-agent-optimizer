@@ -1,5 +1,6 @@
 import React from "react";
 import { Button, Nav, Navbar } from "react-bootstrap";
+import { Link } from "wouter";
 import useAgentStore from "../hooks/useAgentStore";
 
 export default function AppNavBar() {
@@ -11,7 +12,16 @@ export default function AppNavBar() {
       <Navbar.Toggle aria-controls="basic-navbar-nav" />
       <Navbar.Collapse id="basic-navbar-nav">
         <Nav className="mr-auto">
-          {state.agentConfig && <Nav.Link href="#link">List Intents</Nav.Link>}
+          {state.agentConfig && (
+            <>
+              <Link href="/intents">
+                <Nav.Link>List Intents</Nav.Link>
+              </Link>
+              <Link href="/rename-intents">
+                <Nav.Link>Rename Intents</Nav.Link>
+              </Link>
+            </>
+          )}
           {!state.agentConfig && <Nav.Link href="#home">Import Agent</Nav.Link>}
         </Nav>
         <Navbar.Text>

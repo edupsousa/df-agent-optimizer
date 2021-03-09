@@ -5,6 +5,7 @@ import { AgentConfig } from "../types/AgentConfig";
 import { Intent } from "../types/Intent";
 
 export type State = {
+  isLoaded: boolean;
   agentConfig: AgentConfig | null;
   intentList: Intent[] | null;
   loadAgent: (data: string) => Promise<void>;
@@ -12,16 +13,17 @@ export type State = {
 };
 
 const useStore = create<State>((set) => ({
+  isLoaded: false,
   agentConfig: null,
   intentList: null,
   loadAgent: async (data: string) => {
     const zipFile = await openZipFile(data);
     const agentConfig = await getAgentConfigFromZipFile(zipFile);
     const intentList = await getIntentsFromZipFile(zipFile);
-    set({ agentConfig, intentList });
+    set({ agentConfig, intentList, isLoaded: true });
   },
   unloadAgent: () => {
-    set({ agentConfig: null, intentList: null });
+    set({ agentConfig: null, intentList: null, isLoaded: false });
   },
 }));
 
