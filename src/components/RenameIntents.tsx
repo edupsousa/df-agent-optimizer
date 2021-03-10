@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Col, Form, ListGroup, Row } from "react-bootstrap";
-import useAgentStore from "../hooks/useAgentStore";
-import { Intent } from "../types/Intent";
+import useAgentStore from "hooks/useAgentStore";
+import { Intent } from "types/Intent";
 
 export default function RenameIntents() {
   const [useRegexp, setUseRegexp] = useState(false);

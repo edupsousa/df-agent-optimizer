@@ -1,7 +1,7 @@
 import React from "react";
 import { Button, Nav, Navbar } from "react-bootstrap";
 import { Link } from "wouter";
-import useAgentStore from "../hooks/useAgentStore";
+import useAgentStore from "hooks/useAgentStore";
 
 export default function AppNavBar() {
   const state = useAgentStore();

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import useAgentStore from "../hooks/useAgentStore";
+import useAgentStore from "hooks/useAgentStore";
 
 export default function IntentList() {
   const { intentList } = useAgentStore();

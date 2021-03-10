@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button, Col, Form } from "react-bootstrap";
-import useAgentStore from "../hooks/useAgentStore";
+import useAgentStore from "hooks/useAgentStore";
 
 export default function AgentImportForm() {
   const state = useAgentStore();

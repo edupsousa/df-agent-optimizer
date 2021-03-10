@@ -1,11 +1,11 @@
 import React from "react";
 import { Container } from "react-bootstrap";
 import { Redirect, Route, Switch } from "wouter";
-import AgentImportForm from "./components/AgentImportForm";
-import AppNavBar from "./components/AppNavBar";
-import IntentList from "./components/IntentList";
-import RenameIntents from "./components/RenameIntents";
-import useAgentStore from "./hooks/useAgentStore";
+import AgentImportForm from "components/AgentImportForm";
+import AppNavBar from "components/AppNavBar";
+import IntentList from "components/IntentList";
+import RenameIntents from "components/RenameIntents";
+import useAgentStore from "hooks/useAgentStore";
 
 function App() {
   const state = useAgentStore();
