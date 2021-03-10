@@ -1,21 +1,38 @@
 import JSZip, { JSZipObject } from "jszip";
 import { createTrackedSelector } from "react-tracked";
-import create from "zustand";
+import create, { GetState, SetState, StoreApi } from "zustand";
+import { persist, devtools } from "zustand/middleware";
 import { AgentConfig } from "../types/AgentConfig";
 import { Intent } from "../types/Intent";
 
-export type State = {
+export type StateProperties = {
   isLoaded: boolean;
   agentConfig: AgentConfig | null;
   intentList: Intent[] | null;
+  rawData: string | null;
+};
+
+export type StateActions = {
   loadAgent: (data: string) => Promise<void>;
   unloadAgent: () => void;
 };
 
-const useStore = create<State>((set) => ({
+export type State = StateProperties & StateActions;
+
+const initialState: StateProperties = {
   isLoaded: false,
   agentConfig: null,
   intentList: null,
+  rawData: null,
+};
+
+type ActionsCreator = (
+  set: SetState<State>,
+  get: GetState<State>,
+  api: StoreApi<State>
+) => StateActions;
+
+const stateActions: ActionsCreator = (set, get, api) => ({
   loadAgent: async (data: string) => {
     const zipFile = await openZipFile(data);
     const agentConfig = await getAgentConfigFromZipFile(zipFile);
@@ -23,9 +40,22 @@ const useStore = create<State>((set) => ({
     set({ agentConfig, intentList, isLoaded: true });
   },
   unloadAgent: () => {
-    set({ agentConfig: null, intentList: null, isLoaded: false });
+    set(initialState);
   },
-}));
+});
+
+const useStore = create<State>(
+  persist(
+    devtools((set, get, api) => ({
+      ...initialState,
+      ...stateActions(set, get, api),
+    })),
+    {
+      name: "agent-storage",
+      getStorage: () => sessionStorage,
+    }
+  )
+);
 
 const useAgentStore = createTrackedSelector(useStore);
 
