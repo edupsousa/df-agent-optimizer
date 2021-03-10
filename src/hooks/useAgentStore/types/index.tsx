@@ -1,6 +1,6 @@
 import { GetState, SetState, StoreApi } from "zustand";
-import { AgentConfig } from "types/AgentConfig";
-import { Intent } from "types/Intent";
+import { AgentConfig } from "./AgentConfig";
+import { Intent } from "./Intent";
 
 export type StateProperties = {
   isLoaded: boolean;

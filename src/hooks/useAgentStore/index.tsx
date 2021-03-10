@@ -4,6 +4,9 @@ import { devtools, persist } from "zustand/middleware";
 import { loadAgentAction } from "./loadAgentAction";
 import { ActionsCreator, State, StateProperties } from "./types";
 
+export type { Intent } from "./types/Intent";
+export type { AgentConfig } from "./types/AgentConfig";
+
 const initialState: StateProperties = {
   isLoaded: false,
   agentConfig: null,
