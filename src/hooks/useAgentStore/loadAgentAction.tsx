@@ -1,6 +1,5 @@
-import { AgentConfig, Intent } from "hooks/useAgentStore";
 import JSZip, { JSZipObject } from "jszip";
-import { ActionCreator } from "./types";
+import { ActionCreator, AgentConfig, Intent } from "./types";
 
 export const loadAgentAction: ActionCreator<"loadAgent"> = (set) => async (
   data: string
