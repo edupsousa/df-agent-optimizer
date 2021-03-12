@@ -5,7 +5,7 @@ import { loadAgentAction } from "./loadAgentAction";
 import { renameIntentsAction } from "./renameIntentsAction";
 import { ActionsCreator, State, StateProperties } from "./types";
 
-export type { AgentConfig, Intent } from "./types";
+export type { AgentConfig, Intent, IntentToRename } from "./types";
 
 const initialState: StateProperties = {
   isLoaded: false,

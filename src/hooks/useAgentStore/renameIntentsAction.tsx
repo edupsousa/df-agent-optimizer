@@ -17,6 +17,7 @@ export const renameIntentsAction: ActionCreator<"renameIntents"> = (
       `intents/${newName}.json`,
       JSON.stringify({ ...intent, name: newName }, null, 2)
     );
+    //TODO: Must rename _usersays_ files too.
   });
   const rawNewFile = await zipFile.generateAsync({
     type: "binarystring",
