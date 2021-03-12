@@ -15,6 +15,7 @@ export default function RenameIntents() {
         ? []
         : intentList
             .slice()
+            .map((i) => i.intent)
             .filter((i) =>
               useRegexp && filterRegexp
                 ? filterRegexp.test(i.name)

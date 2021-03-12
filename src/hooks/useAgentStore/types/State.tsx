@@ -2,16 +2,24 @@ import { GetState, SetState, StoreApi } from "zustand";
 import { AgentConfig } from "./AgentConfig";
 import { Intent } from "./Intent";
 
+export type IntentListItem = {
+  filename: string;
+  intent: Intent;
+};
+
 export type StateProperties = {
   isLoaded: boolean;
   agentConfig: AgentConfig | null;
-  intentList: Intent[] | null;
+  intentList: IntentListItem[] | null;
   rawData: string | null;
 };
+
+export type IntentToRename = IntentListItem & { newName: string };
 
 export type StateActions = {
   loadAgent: (data: string) => Promise<void>;
   unloadAgent: () => void;
+  renameIntents: (intents: IntentToRename[]) => Promise<void>;
 };
 
 export type State = StateProperties & StateActions;

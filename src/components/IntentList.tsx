@@ -9,6 +9,7 @@ export default function IntentList() {
         ? []
         : intentList
             .slice()
+            .map((i) => i.intent)
             .sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0)),
     [intentList]
   );
