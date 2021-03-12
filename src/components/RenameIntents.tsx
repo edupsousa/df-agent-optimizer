@@ -1,5 +1,6 @@
 import useAgentStore, { IntentToRename } from "hooks/useAgentStore";
-import React, { useEffect, useMemo, useState } from "react";
+import { IntentListItem } from "hooks/useAgentStore/types";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Button, Col, Form, ListGroup, Row } from "react-bootstrap";
 
 const caseInsenstiveReplace = (
@@ -12,30 +13,6 @@ const caseInsenstiveReplace = (
   return value.replace(reg, haystack);
 };
 
-const getReplacement = (
-  name: string,
-  {
-    useRegexp,
-    caseInsensitive,
-    filterString,
-    replacement,
-    filterRegexp,
-  }: {
-    useRegexp: boolean;
-    caseInsensitive: boolean;
-    filterString: string;
-    replacement: string;
-    filterRegexp: RegExp | null;
-  }
-): string => {
-  if (!useRegexp)
-    return caseInsensitive
-      ? caseInsenstiveReplace(name, filterString, replacement)
-      : name.replaceAll(filterString, replacement);
-  if (!filterRegexp) return name;
-  return name.replace(filterRegexp, replacement);
-};
-
 export default function RenameIntents() {
   const [useRegexp, setUseRegexp] = useState(false);
   const [caseInsensitive, setCaseInsensitive] = useState(false);
@@ -43,40 +20,55 @@ export default function RenameIntents() {
   const [replacement, setReplacement] = useState("");
   const [filterRegexp, setFilterRegexp] = useState<RegExp | null>(null);
   const { intentList, renameIntents } = useAgentStore();
+
+  const filterBySearch = useCallback(
+    ({ intent: i }: IntentListItem): boolean =>
+      useRegexp && filterRegexp
+        ? filterRegexp.test(i.name)
+        : (caseInsensitive ? i.name.toLowerCase() : i.name).includes(
+            caseInsensitive ? filterString.toLowerCase() : filterString
+          ),
+    [caseInsensitive, filterRegexp, filterString, useRegexp]
+  );
+
+  const sortByIntentName = useCallback(
+    (
+      { intent: a }: IntentListItem,
+      { intent: b }: IntentListItem
+    ): -1 | 0 | 1 => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0),
+    []
+  );
+
+  const getReplacement = useCallback(
+    (name: string): string => {
+      if (!useRegexp)
+        return caseInsensitive
+          ? caseInsenstiveReplace(name, filterString, replacement)
+          : name.replaceAll(filterString, replacement);
+      if (!filterRegexp) return name;
+      return name.replace(filterRegexp, replacement);
+    },
+    [caseInsensitive, filterRegexp, filterString, replacement, useRegexp]
+  );
+
+  const addNewNameToItem = useCallback(
+    (item: IntentListItem) => ({
+      ...item,
+      newName: getReplacement(item.intent.name),
+    }),
+    [getReplacement]
+  );
+
   const intents: IntentToRename[] = useMemo(
     () =>
       intentList === null
         ? []
         : intentList
             .slice()
-            .filter(({ intent: i }) =>
-              useRegexp && filterRegexp
-                ? filterRegexp.test(i.name)
-                : (caseInsensitive ? i.name.toLowerCase() : i.name).includes(
-                    caseInsensitive ? filterString.toLowerCase() : filterString
-                  )
-            )
-            .sort(({ intent: a }, { intent: b }) =>
-              a.name > b.name ? 1 : a.name < b.name ? -1 : 0
-            )
-            .map((item) => ({
-              ...item,
-              newName: getReplacement(item.intent.name, {
-                useRegexp,
-                caseInsensitive,
-                filterString,
-                replacement,
-                filterRegexp,
-              }),
-            })),
-    [
-      intentList,
-      useRegexp,
-      filterRegexp,
-      caseInsensitive,
-      filterString,
-      replacement,
-    ]
+            .filter(filterBySearch)
+            .sort(sortByIntentName)
+            .map(addNewNameToItem),
+    [intentList, filterBySearch, sortByIntentName, addNewNameToItem]
   );
 
   useEffect(() => {
