@@ -1,35 +1,22 @@
+import RenameIntentsForm, {
+  IntentFilterFn,
+  IntentRenameFn,
+} from "components/RenameIntentsForm";
+import RenameIntentsListItem from "components/RenameIntentsListItem";
 import useAgentStore, { IntentToRename } from "hooks/useAgentStore";
 import { IntentListItem } from "hooks/useAgentStore/types";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Button, Col, Form, ListGroup, Row } from "react-bootstrap";
-
-const caseInsenstiveReplace = (
-  value: string,
-  needle: string,
-  haystack: string
-): string => {
-  var esc = needle.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-  var reg = new RegExp(esc, "ig");
-  return value.replace(reg, haystack);
-};
+import React, { useCallback, useMemo, useState } from "react";
+import { Alert, ListGroup } from "react-bootstrap";
 
 export default function RenameIntents() {
-  const [useRegexp, setUseRegexp] = useState(false);
-  const [caseInsensitive, setCaseInsensitive] = useState(false);
-  const [filterString, setFilterString] = useState("");
-  const [replacement, setReplacement] = useState("");
-  const [filterRegexp, setFilterRegexp] = useState<RegExp | null>(null);
+  const [{ filterFunction, renameFunction }, setFilterAndRenameFn] = useState<{
+    filterFunction: IntentFilterFn;
+    renameFunction: IntentRenameFn;
+  }>({
+    filterFunction: () => true,
+    renameFunction: (name) => name,
+  });
   const { intentList, renameIntents } = useAgentStore();
-
-  const filterBySearch = useCallback(
-    ({ intent: i }: IntentListItem): boolean =>
-      useRegexp && filterRegexp
-        ? filterRegexp.test(i.name)
-        : (caseInsensitive ? i.name.toLowerCase() : i.name).includes(
-            caseInsensitive ? filterString.toLowerCase() : filterString
-          ),
-    [caseInsensitive, filterRegexp, filterString, useRegexp]
-  );
 
   const sortByIntentName = useCallback(
     (
@@ -39,24 +26,12 @@ export default function RenameIntents() {
     []
   );
 
-  const getReplacement = useCallback(
-    (name: string): string => {
-      if (!useRegexp)
-        return caseInsensitive
-          ? caseInsenstiveReplace(name, filterString, replacement)
-          : name.replaceAll(filterString, replacement);
-      if (!filterRegexp) return name;
-      return name.replace(filterRegexp, replacement);
-    },
-    [caseInsensitive, filterRegexp, filterString, replacement, useRegexp]
-  );
-
   const addNewNameToItem = useCallback(
     (item: IntentListItem) => ({
       ...item,
-      newName: getReplacement(item.intent.name),
+      newName: renameFunction(item.intent.name),
     }),
-    [getReplacement]
+    [renameFunction]
   );
 
   const intents: IntentToRename[] = useMemo(
@@ -65,24 +40,11 @@ export default function RenameIntents() {
         ? []
         : intentList
             .slice()
-            .filter(filterBySearch)
+            .filter(filterFunction)
             .sort(sortByIntentName)
             .map(addNewNameToItem),
-    [intentList, filterBySearch, sortByIntentName, addNewNameToItem]
+    [intentList, filterFunction, sortByIntentName, addNewNameToItem]
   );
-
-  useEffect(() => {
-    if (!useRegexp) return;
-    try {
-      const regExp = new RegExp(
-        filterString,
-        caseInsensitive ? "i" : undefined
-      );
-      setFilterRegexp(regExp);
-    } catch (e) {
-      setFilterRegexp(null);
-    }
-  }, [filterString, caseInsensitive, useRegexp]);
 
   const [hasCollision, nameCounter] = useMemo(
     () =>
@@ -97,113 +59,53 @@ export default function RenameIntents() {
     [intents]
   );
 
-  const disableRename = useMemo(
-    () =>
-      hasCollision ||
-      intents.length === 0 ||
-      filterString.length === 0 ||
-      replacement.length === 0 ||
-      (useRegexp && !filterRegexp),
-    [intents, filterString, replacement, useRegexp, filterRegexp, hasCollision]
+  const disableRename = useMemo(() => hasCollision || intents.length === 0, [
+    hasCollision,
+    intents.length,
+  ]);
+
+  const handleSubmit = useCallback(
+    async (ev: React.FormEvent<HTMLFormElement>): Promise<void> => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (disableRename) return;
+
+      await renameIntents(intents);
+    },
+    [disableRename, intents, renameIntents]
   );
 
-  const renderIntent = ({ intent: i, newName }: IntentToRename) => {
-    return (
-      <ListGroup.Item
-        key={i.id}
-        className={
-          nameCounter[newName] && nameCounter[newName] > 1
-            ? "bg-danger text-white"
-            : ""
-        }
-      >
-        <Row>
-          <Col>{i.name}</Col>
-          <Col xs="auto">{"->"}</Col>
-          <Col className="text-right">{newName}</Col>
-        </Row>
-      </ListGroup.Item>
-    );
-  };
-
-  const handleSubmit = async (
-    ev: React.FormEvent<HTMLFormElement>
-  ): Promise<void> => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    if (disableRename) return;
-
-    await renameIntents(intents);
-  };
+  const handleFormChange = useCallback(
+    (filterFunction: IntentFilterFn, renameFunction: IntentRenameFn): void => {
+      setFilterAndRenameFn({ filterFunction, renameFunction });
+    },
+    []
+  );
 
   return (
     <div>
       <h1>Rename Intents</h1>
-      <Form onSubmit={handleSubmit}>
-        <Form.Group as={Row} controlId="filter">
-          <Form.Label column sm={2}>
-            Find:
-          </Form.Label>
-          <Col sm={10}>
-            <Form.Control
-              type="text"
-              value={filterString}
-              onChange={(ev) => setFilterString(ev.target.value)}
-            />
-          </Col>
-        </Form.Group>
-        <Form.Group as={Row} controlId="replacement">
-          <Form.Label column sm={2}>
-            Replace:
-          </Form.Label>
-          <Col sm={10}>
-            <Form.Control
-              type="text"
-              value={replacement}
-              onChange={(ev) => setReplacement(ev.target.value)}
-            />
-          </Col>
-        </Form.Group>
-        <Row>
-          <Col sm={{ span: 7, offset: 2 }}>
-            <Form.Group as={Row} controlId="caseInsensitive">
-              <Col>
-                <Form.Check
-                  label="Case Insensitive"
-                  checked={caseInsensitive}
-                  onChange={(ev) => setCaseInsensitive(ev.target.checked)}
-                />
-              </Col>
-            </Form.Group>
-            <Form.Group as={Row} controlId="isRegexp">
-              <Col>
-                <Form.Check
-                  label="Regular Expression"
-                  checked={useRegexp}
-                  onChange={(ev) => setUseRegexp(ev.target.checked)}
-                />
-              </Col>
-            </Form.Group>
-          </Col>
-          <Col className="d-flex justify-content-center align-items-center">
-            <Button
-              variant="primary"
-              type="submit"
-              disabled={disableRename}
-              block
-            >
-              Rename Intents
-            </Button>
-          </Col>
-        </Row>
-      </Form>
+      <RenameIntentsForm
+        {...{ handleSubmit, disableRename }}
+        onFormChange={handleFormChange}
+      />
       {hasCollision && (
         <Alert variant="danger" className="text-center">
           Can't rename because some intent names are duplicated!
         </Alert>
       )}
       Matched {intents.length} intents.
-      <ListGroup>{intents && intents.map(renderIntent)}</ListGroup>
+      <ListGroup>
+        {intents &&
+          intents.map(({ intent, newName }) => (
+            <RenameIntentsListItem
+              key={intent.id}
+              newName={newName}
+              intent={intent}
+              hasCollision={nameCounter[newName] > 1}
+            />
+          ))}
+      </ListGroup>
     </div>
   );
 }
