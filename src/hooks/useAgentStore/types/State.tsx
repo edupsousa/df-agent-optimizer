@@ -11,13 +11,13 @@ export type StateProperties = {
   isLoaded: boolean;
   agentConfig: AgentConfig | null;
   intentList: IntentListItem[] | null;
-  rawData: string | null;
+  rawData: ArrayBuffer | null;
 };
 
 export type IntentToRename = IntentListItem & { newName: string };
 
 export type StateActions = {
-  loadAgent: (data: string) => Promise<void>;
+  loadAgent: (data: File | ArrayBuffer) => Promise<void>;
   unloadAgent: () => void;
   renameIntents: (intents: IntentToRename[]) => Promise<void>;
 };

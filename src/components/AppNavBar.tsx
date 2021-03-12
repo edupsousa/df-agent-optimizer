@@ -2,9 +2,10 @@ import React from "react";
 import { Button, Nav, Navbar } from "react-bootstrap";
 import { Link } from "wouter";
 import useAgentStore from "hooks/useAgentStore";
+import { saveAs } from "file-saver";
 
 export default function AppNavBar() {
-  const state = useAgentStore();
+  const { agentConfig, rawData, unloadAgent } = useAgentStore();
 
   return (
     <Navbar bg="light" expand="lg" className="mb-3">
@@ -12,7 +13,7 @@ export default function AppNavBar() {
       <Navbar.Toggle aria-controls="basic-navbar-nav" />
       <Navbar.Collapse id="basic-navbar-nav">
         <Nav className="mr-auto">
-          {state.agentConfig && (
+          {agentConfig && (
             <>
               <Link href="/intents">
                 <Nav.Link>List Intents</Nav.Link>
@@ -22,16 +23,24 @@ export default function AppNavBar() {
               </Link>
             </>
           )}
-          {!state.agentConfig && <Nav.Link href="#home">Import Agent</Nav.Link>}
+          {!agentConfig && <Nav.Link href="#home">Import Agent</Nav.Link>}
         </Nav>
         <Navbar.Text>
-          Agent: {!state.agentConfig && <span>None</span>}
-          {state.agentConfig && (
+          Agent: {!agentConfig && <span>None</span>}
+          {agentConfig && rawData !== null && (
             <span>
-              {state.agentConfig.displayName}
               <Button
-                variant="outline-dark ml-2"
-                onClick={() => state.unloadAgent()}
+                variant="link"
+                onClick={() => {
+                  saveAs(new Blob([rawData]), "agent.zip");
+                }}
+              >
+                {agentConfig.displayName}
+              </Button>
+              <Button
+                className="ml-2"
+                variant="outline-dark"
+                onClick={() => unloadAgent()}
               >
                 Unload Agent
               </Button>

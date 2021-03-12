@@ -9,7 +9,7 @@ export default function AgentImportForm() {
     ev.preventDefault();
     ev.stopPropagation();
     if (zipFile === null) return;
-    state.loadAgent(await readFile(zipFile));
+    state.loadAgent(zipFile);
   };
 
   const handleAgentFileChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,13 +41,4 @@ export default function AgentImportForm() {
       </Form.Row>
     </Form>
   );
-}
-
-async function readFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsBinaryString(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-  });
 }

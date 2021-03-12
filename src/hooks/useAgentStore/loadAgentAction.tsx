@@ -3,12 +3,13 @@ import { openZipFile } from "./openZipFile";
 import { ActionCreator, AgentConfig, Intent, IntentListItem } from "./types";
 
 export const loadAgentAction: ActionCreator<"loadAgent"> = (set) => async (
-  data: string
+  data: File | ArrayBuffer
 ) => {
   const zipFile = await openZipFile(data);
   const agentConfig = await getAgentConfigFromZipFile(zipFile);
   const intentList = await getIntentsFromZipFile(zipFile);
-  set({ agentConfig, intentList, isLoaded: true, rawData: data });
+  const rawData = await zipFile.generateAsync({ type: "arraybuffer" });
+  set({ agentConfig, intentList, isLoaded: true, rawData });
 };
 
 const INTENT_FILENAME_REGEX = /^intents\/(((?!_usersays_).)*)\.json$/;
