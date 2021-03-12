@@ -8,7 +8,10 @@ export const loadAgentAction: ActionCreator<"loadAgent"> = (set) => async (
   const zipFile = await openZipFile(data);
   const agentConfig = await getAgentConfigFromZipFile(zipFile);
   const intentList = await getIntentsFromZipFile(zipFile);
-  const rawData = await zipFile.generateAsync({ type: "arraybuffer" });
+  const rawData = await zipFile.generateAsync({
+    type: "arraybuffer",
+    compression: "DEFLATE",
+  });
   set({ agentConfig, intentList, isLoaded: true, rawData });
 };
 
