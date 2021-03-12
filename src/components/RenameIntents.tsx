@@ -1,6 +1,6 @@
 import useAgentStore, { IntentToRename } from "hooks/useAgentStore";
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Col, Form, ListGroup, Row } from "react-bootstrap";
+import { Alert, Button, Col, Form, ListGroup, Row } from "react-bootstrap";
 
 const caseInsenstiveReplace = (
   value: string,
@@ -92,18 +92,39 @@ export default function RenameIntents() {
     }
   }, [filterString, caseInsensitive, useRegexp]);
 
+  const [hasCollision, nameCounter] = useMemo(
+    () =>
+      intents.reduce(
+        ([collision, counter], { newName }) => {
+          counter[newName] = newName in counter ? counter[newName] + 1 : 1;
+
+          return [collision || counter[newName] > 1, counter];
+        },
+        [false, {}] as [boolean, Record<string, number>]
+      ),
+    [intents]
+  );
+
   const disableRename = useMemo(
     () =>
+      hasCollision ||
       intents.length === 0 ||
       filterString.length === 0 ||
       replacement.length === 0 ||
       (useRegexp && !filterRegexp),
-    [intents, filterString, replacement, useRegexp, filterRegexp]
+    [intents, filterString, replacement, useRegexp, filterRegexp, hasCollision]
   );
 
   const renderIntent = ({ intent: i, newName }: IntentToRename) => {
     return (
-      <ListGroup.Item key={i.id}>
+      <ListGroup.Item
+        key={i.id}
+        className={
+          nameCounter[newName] && nameCounter[newName] > 1
+            ? "bg-danger text-white"
+            : ""
+        }
+      >
         <Row>
           <Col>{i.name}</Col>
           <Col xs="auto">{"->"}</Col>
@@ -120,8 +141,6 @@ export default function RenameIntents() {
     ev.stopPropagation();
     if (disableRename) return;
 
-    console.log(`Will rename ${intents.length} intents.`);
-    //TODO: Check for name collisions
     await renameIntents(intents);
   };
 
@@ -186,6 +205,11 @@ export default function RenameIntents() {
           </Col>
         </Row>
       </Form>
+      {hasCollision && (
+        <Alert variant="danger" className="text-center">
+          Can't rename because some intent names are duplicated!
+        </Alert>
+      )}
       Matched {intents.length} intents.
       <ListGroup>{intents && intents.map(renderIntent)}</ListGroup>
     </div>
