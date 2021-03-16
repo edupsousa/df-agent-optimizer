@@ -6,6 +6,7 @@ import AppNavBar from "components/AppNavBar";
 import IntentList from "pages/IntentList";
 import RenameIntents from "pages/RenameIntents";
 import useAgentStore from "hooks/useAgentStore";
+import DiagramPage from "pages/DiagramPage";
 
 function App() {
   const state = useAgentStore();
@@ -18,6 +19,7 @@ function App() {
           <Switch>
             <Route path="/intents" component={IntentList} />
             <Route path="/rename-intents" component={RenameIntents} />
+            <Route path="/diagram" component={DiagramPage} />
             <Route>
               <Redirect to="/intents" />
             </Route>

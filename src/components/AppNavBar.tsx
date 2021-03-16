@@ -21,6 +21,9 @@ export default function AppNavBar() {
               <Link href="/rename-intents">
                 <Nav.Link>Rename Intents</Nav.Link>
               </Link>
+              <Link href="/diagram">
+                <Nav.Link>Diagram</Nav.Link>
+              </Link>
             </>
           )}
           {!agentConfig && <Nav.Link href="#home">Import Agent</Nav.Link>}
