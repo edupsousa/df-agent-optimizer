@@ -10,7 +10,7 @@ export type { AgentConfig, Intent, IntentToRename } from "./types";
 const initialState: StateProperties = {
   isLoaded: false,
   agentConfig: null,
-  intentList: null,
+  intentList: [],
   rawData: null,
 };
 

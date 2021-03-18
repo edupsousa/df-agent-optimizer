@@ -10,7 +10,7 @@ export type IntentListItem = {
 export type StateProperties = {
   isLoaded: boolean;
   agentConfig: AgentConfig | null;
-  intentList: IntentListItem[] | null;
+  intentList: IntentListItem[];
   rawData: ArrayBuffer | null;
 };
 

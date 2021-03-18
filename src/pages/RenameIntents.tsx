@@ -36,13 +36,11 @@ export default function RenameIntents() {
 
   const intents: IntentToRename[] = useMemo(
     () =>
-      intentList === null
-        ? []
-        : intentList
-            .slice()
-            .filter(filterFunction)
-            .sort(sortByIntentName)
-            .map(addNewNameToItem),
+      intentList
+        .slice()
+        .filter(filterFunction)
+        .sort(sortByIntentName)
+        .map(addNewNameToItem),
     [intentList, filterFunction, sortByIntentName, addNewNameToItem]
   );
 
