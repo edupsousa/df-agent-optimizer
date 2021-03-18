@@ -4,7 +4,15 @@ import useAgentMap, {
   AgentMapIntent,
 } from "hooks/useAgentMap";
 import useAgentStore from "hooks/useAgentStore";
-import React, { useEffect, useMemo, useRef } from "react";
+import { IntentListItem } from "hooks/useAgentStore/types";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { ProgressBar } from "react-bootstrap";
 import { Network } from "vis-network";
 
 export type ContextLinks = {
@@ -14,16 +22,25 @@ export type ContextLinks = {
 
 export type OldContextMap = Record<string, ContextLinks>;
 
-type Node = {
+type IntentNode = {
   id: string;
   label: string;
   intent: AgentMapIntent;
 };
 
+type InputContextNode = {
+  id: string;
+  label: string;
+  shape: "diamond";
+};
+
+type Node = IntentNode | InputContextNode;
+
 type Edge = {
   from: string;
   to: string;
-  label: string;
+  label?: string;
+  color?: string;
 };
 
 type GraphData = {
@@ -46,7 +63,7 @@ function createNodesAndEdges(
     return `i#${intent.name}`;
   };
 
-  const addNode = (intent: AgentMapIntent): Node => {
+  const addIntentNode = (intent: AgentMapIntent): IntentNode => {
     const id = getIntentNodeId(intent);
     if (!nodes[id]) {
       nodes[id] = {
@@ -54,8 +71,35 @@ function createNodesAndEdges(
         intent,
         label: intent.name,
       };
+      if (intent.inputContexts.length > 0) addInputContextsNode(intent);
     }
-    return nodes[id];
+    return nodes[id] as IntentNode;
+  };
+
+  const getInputContextsNodeId = (intent: AgentMapIntent): string => {
+    const names = intent.inputContexts
+      .map((ctx) => ctx.name)
+      .sort()
+      .join("|");
+    return `ic#${names}`;
+  };
+
+  const addInputContextsNode = (intent: AgentMapIntent) => {
+    const contextNames = intent.inputContexts.map((ctx) => ctx.name).sort();
+
+    const id = getInputContextsNodeId(intent);
+    if (!nodes[id]) {
+      nodes[id] = {
+        id,
+        shape: "diamond",
+        label: contextNames.join(", "),
+      };
+    }
+    edges[`${id}->${intent.name}`] = {
+      color: "red",
+      from: id,
+      to: getIntentNodeId(intent),
+    };
   };
 
   const addEdge = (
@@ -64,7 +108,7 @@ function createNodesAndEdges(
     to: AgentMapIntent
   ) => {
     const fromId = getIntentNodeId(from);
-    const toId = getIntentNodeId(to);
+    const toId = getInputContextsNodeId(to);
     const id = `${fromId}->${context.name}->${toId}`;
     if (edges[id]) return;
     edges[id] = {
@@ -76,46 +120,80 @@ function createNodesAndEdges(
 
   Object.values(contextMap.intents)
     .slice(0, options?.intentLimit)
-    .forEach((intent) => addNode(intent));
+    .forEach((intent) => addIntentNode(intent));
 
-  Object.values(nodes).forEach((node) => {
-    const { intent } = node;
-    intent.inputContexts.forEach((context) => {
-      context.outputOn
-        .filter(
-          ({ lifespan, intent }) =>
-            lifespan > 0 && nodes[getIntentNodeId(intent)]
-        )
-        .forEach(({ intent: outputIntent }) =>
-          addEdge(context, outputIntent, intent)
-        );
-    });
-    intent.outputContexts
-      .filter(({ lifespan }) => lifespan > 0)
-      .forEach(({ context }) => {
-        context.inputOn
-          .filter((intent) => nodes[getIntentNodeId(intent)])
-          .forEach((inputIntent) => addEdge(context, intent, inputIntent));
+  Object.values(nodes)
+    .filter((node): node is IntentNode => "intent" in node)
+    .forEach((node) => {
+      const { intent } = node;
+      intent.inputContexts.forEach((context) => {
+        context.outputOn
+          .filter(
+            ({ lifespan, intent }) =>
+              lifespan > 0 && nodes[getIntentNodeId(intent)]
+          )
+          .forEach(({ intent: outputIntent }) =>
+            addEdge(context, outputIntent, intent)
+          );
       });
-  });
+      intent.outputContexts
+        .filter(({ lifespan }) => lifespan > 0)
+        .forEach(({ context }) => {
+          context.inputOn
+            .filter((intent) => nodes[getIntentNodeId(intent)])
+            .forEach((inputIntent) => addEdge(context, intent, inputIntent));
+        });
+    });
 
   return { nodes: Object.values(nodes), edges: Object.values(edges) };
 }
 
-function NetworkGraph(props: { graph: GraphData }) {
+function NetworkGraph({
+  intentList,
+  onProgress,
+}: {
+  intentList: IntentListItem[];
+  onProgress: (progress: number) => void;
+}) {
+  const network = useRef<Network | null>(null);
+  const map = useAgentMap(intentList);
+  const graph = useMemo(() => {
+    return createNodesAndEdges(map, {
+      intentLimit: 200,
+    });
+  }, [map]);
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (container.current) {
-      console.log(
-        `Nodes: ${props.graph.nodes.length} Edges: ${props.graph.edges.length}`
-      );
-      new Network(container.current, props.graph, {
+    if (container.current && network.current === null) {
+      console.log(`Nodes: ${graph.nodes.length} Edges: ${graph.edges.length}`);
+      network.current = new Network(container.current, graph, {
         edges: { arrows: "to" },
         layout: { improvedLayout: false },
+        physics: {
+          solver: "repulsion",
+          repulsion: {
+            nodeDistance: 250,
+          },
+          minVelocity: 10,
+        },
+      });
+      let t0: number, t1: number;
+      network.current.on("startStabilizing", () => (t0 = performance.now()));
+      network.current.on("stabilizationProgress", ({ iterations, total }) =>
+        onProgress((iterations / total) * 100)
+      );
+      network.current.on("stabilized", ({ iterations }) => {
+        onProgress(100);
+        t1 = performance.now();
+        console.log(
+          `Stabilized in ${iterations} iterations, took ${
+            (t1 - t0) / 1000
+          } seconds`
+        );
       });
     }
-  }, [props.graph]);
+  }, [graph, onProgress]);
 
   return (
     <div
@@ -126,18 +204,21 @@ function NetworkGraph(props: { graph: GraphData }) {
 }
 
 export default function DiagramPage() {
-  const { intentList } = useAgentStore();
-  const map = useAgentMap(intentList);
-  const graph = useMemo(() => {
-    return createNodesAndEdges(map, {
-      intentLimit: 100,
-    });
-  }, [map]);
+  const [graphProgress, setGraphProgress] = useState(0);
+  const progressHandler = useCallback((progress: number) => {
+    console.log(progress);
+    setGraphProgress(progress);
+  }, []);
+  const state = useAgentStore();
 
   return (
     <div>
       <h1>Diagram</h1>
-      <NetworkGraph graph={graph} />
+      <ProgressBar now={graphProgress} />
+      <NetworkGraph
+        intentList={state.intentList}
+        onProgress={progressHandler}
+      />
     </div>
   );
 }
