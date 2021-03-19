@@ -1,7 +1,8 @@
 import NetworkGraph from "components/NetworkGraph";
 import useAgentStore from "hooks/useAgentStore";
-import React, { useCallback, useState } from "react";
-import { ProgressBar } from "react-bootstrap";
+import React, { useState } from "react";
+import { Button, Form } from "react-bootstrap";
+import { NetworkGraphProps } from "react-graph-vis";
 
 export type ContextLinks = {
   inputOn: string[];
@@ -11,20 +12,29 @@ export type ContextLinks = {
 export type OldContextMap = Record<string, ContextLinks>;
 
 export default function DiagramPage() {
-  const [graphProgress, setGraphProgress] = useState(0);
-  const progressHandler = useCallback((progress: number) => {
-    setGraphProgress(progress);
-  }, []);
+  const [intentLimit, setIntentLimit] = useState(50);
+  const [options, setOptions] = useState<NetworkGraphProps["options"]>({
+    intentLimit,
+  });
   const state = useAgentStore();
 
   return (
     <div>
       <h1>Diagram</h1>
-      <NetworkGraph
-        intentList={state.intentList}
-        onProgress={progressHandler}
-      />
-      <ProgressBar now={graphProgress} />
+      <Form
+        onSubmit={(ev) => {
+          ev.preventDefault();
+          setOptions({ intentLimit });
+        }}
+      >
+        <Form.Control
+          type="number"
+          value={intentLimit}
+          onChange={(ev) => setIntentLimit(Number.parseInt(ev.target.value))}
+        />
+        <Button type="submit">Atualizar</Button>
+      </Form>
+      <NetworkGraph intentList={state.intentList} options={options} />
     </div>
   );
 }

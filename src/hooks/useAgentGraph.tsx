@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { AgentMap, AgentMapContext, AgentMapIntent } from "./useAgentMap";
 
 type IntentNode = {
@@ -37,39 +38,43 @@ export default function useAgentGraph(
   agentMap: AgentMap,
   options?: GraphOptions
 ): GraphData {
-  const nodes: NodeMap = {};
-  const edges: EdgeMap = {};
+  const intentLimit = options?.intentLimit;
 
-  Object.values(agentMap.intents)
-    .slice(0, options?.intentLimit)
-    .forEach((intent) => addIntentNode(nodes, edges, intent));
+  return useMemo(() => {
+    const nodes: NodeMap = {};
+    const edges: EdgeMap = {};
 
-  Object.values(nodes)
-    .filter((node): node is IntentNode => "intent" in node)
-    .forEach((node) => {
-      const { intent } = node;
-      intent.inputContexts.forEach((context) => {
-        context.outputOn
-          .filter(
-            ({ lifespan, intent }) =>
-              lifespan > 0 && nodes[getIntentNodeId(intent)]
-          )
-          .forEach(({ intent: outputIntent }) =>
-            addEdge(edges, context, outputIntent, intent)
-          );
-      });
-      intent.outputContexts
-        .filter(({ lifespan }) => lifespan > 0)
-        .forEach(({ context }) => {
-          context.inputOn
-            .filter((intent) => nodes[getIntentNodeId(intent)])
-            .forEach((inputIntent) =>
-              addEdge(edges, context, intent, inputIntent)
+    Object.values(agentMap.intents)
+      .slice(0, intentLimit)
+      .forEach((intent) => addIntentNode(nodes, edges, intent));
+
+    Object.values(nodes)
+      .filter((node): node is IntentNode => "intent" in node)
+      .forEach((node) => {
+        const { intent } = node;
+        intent.inputContexts.forEach((context) => {
+          context.outputOn
+            .filter(
+              ({ lifespan, intent }) =>
+                lifespan > 0 && nodes[getIntentNodeId(intent)]
+            )
+            .forEach(({ intent: outputIntent }) =>
+              addEdge(edges, context, outputIntent, intent)
             );
         });
-    });
+        intent.outputContexts
+          .filter(({ lifespan }) => lifespan > 0)
+          .forEach(({ context }) => {
+            context.inputOn
+              .filter((intent) => nodes[getIntentNodeId(intent)])
+              .forEach((inputIntent) =>
+                addEdge(edges, context, intent, inputIntent)
+              );
+          });
+      });
 
-  return { nodes: Object.values(nodes), edges: Object.values(edges) };
+    return { nodes: Object.values(nodes), edges: Object.values(edges) };
+  }, [agentMap, intentLimit]);
 }
 
 function getIntentNodeId(intent: AgentMapIntent): string {
