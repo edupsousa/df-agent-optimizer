@@ -61,7 +61,7 @@ export default function NetworkGraph({
         ref={container}
         style={{
           width: "100%",
-          height: "700px",
+          height: "600px",
           border: "1px solid lightgray",
         }}
       ></div>
