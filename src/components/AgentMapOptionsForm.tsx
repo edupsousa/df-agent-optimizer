@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Button, Col, Form } from "react-bootstrap";
 import { NetworkGraphProps } from "components/NetworkGraph";
+import useAgentStore from "hooks/useAgentStore";
 
 type AgentMapOptionsFormProps = {
   defaultOptions: NetworkGraphProps["options"];
@@ -11,6 +12,15 @@ export default function AgentMapOptionsForm({
   onOptionsChange,
   defaultOptions,
 }: AgentMapOptionsFormProps) {
+  const { intentList } = useAgentStore();
+  const intents = useMemo(
+    () =>
+      intentList
+        .slice()
+        .map((i) => i.intent.name)
+        .sort((a, b) => (a > b ? 1 : a < b ? -1 : 0)),
+    [intentList]
+  );
   const [intentLimit, setIntentLimit] = useState(defaultOptions.intentLimit);
   const [intentContains, setIntentContains] = useState(
     defaultOptions.intentContains
@@ -57,10 +67,16 @@ export default function AgentMapOptionsForm({
         <Form.Group as={Col} controlId="startIntent">
           <Form.Label>Start on Intent</Form.Label>
           <Form.Control
-            type="text"
+            as="select"
             value={startIntent}
             onChange={(ev) => setStartIntent(ev.target.value)}
-          />
+          >
+            {intents.map((i) => (
+              <option key={i} value={i}>
+                {i}
+              </option>
+            ))}
+          </Form.Control>
         </Form.Group>
         <Form.Group as={Col} controlId="depthFromStart">
           <Form.Label>Depth from Start</Form.Label>

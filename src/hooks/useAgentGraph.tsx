@@ -51,8 +51,11 @@ export default function useAgentGraph(
     const edges: EdgeMap = {};
 
     let intents: AgentMapIntent[] = [];
-    if (startIntent && depthFromStart) {
-      const pushNextIntents = (intent: AgentMapIntent, depth: number) => {
+    if (startIntent && depthFromStart !== undefined) {
+      const pushNextIntents = (
+        intent: AgentMapIntent,
+        depth: number | null
+      ) => {
         intents.push(intent);
         if (depth === 0) return;
         intent.outputContexts
@@ -60,11 +63,14 @@ export default function useAgentGraph(
           .forEach(({ context }) =>
             context.inputOn.forEach((nextIntent) => {
               if (intents.includes(nextIntent)) return;
-              pushNextIntents(nextIntent, depth - 1);
+              pushNextIntents(nextIntent, depth === null ? depth : depth - 1);
             })
           );
       };
-      pushNextIntents(agentMap.intents[startIntent], depthFromStart);
+      pushNextIntents(
+        agentMap.intents[startIntent],
+        depthFromStart === 0 ? null : depthFromStart
+      );
     } else {
       intents = [...Object.values(agentMap.intents)];
     }
