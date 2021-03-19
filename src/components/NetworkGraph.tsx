@@ -35,11 +35,7 @@ export default function NetworkGraph({
   const container = useRef<HTMLDivElement>(null);
 
   const renderNetwork = useCallback(() => {
-    console.log("renderNetwork");
     if (container.current) {
-      console.log(
-        `Rendering Network with ${graph.nodes.length} nodes and ${graph.edges.length} edges.`
-      );
       network.current = new Network(
         container.current,
         graph,
@@ -51,7 +47,6 @@ export default function NetworkGraph({
       network.current.on("stabilized", ({ iterations }) => setProgress(100));
     }
     return () => {
-      console.log("Network cleanup");
       if (!network.current) return;
       network.current.destroy();
       network.current = null;
@@ -70,7 +65,10 @@ export default function NetworkGraph({
           border: "1px solid lightgray",
         }}
       ></div>
-      <ProgressBar now={progress} label={`${progress}%`} />
+      <ProgressBar
+        now={progress}
+        label={`${progress}% - ${graph.nodes.length} nodes and ${graph.edges.length} edges`}
+      />
     </div>
   );
 }

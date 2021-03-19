@@ -11,7 +11,7 @@ export type ContextLinks = {
 
 export type OldContextMap = Record<string, ContextLinks>;
 
-export default function DiagramPage() {
+export default function AgentMapPage() {
   const [intentLimit, setIntentLimit] = useState(50);
   const [options, setOptions] = useState<NetworkGraphProps["options"]>({
     intentLimit,
