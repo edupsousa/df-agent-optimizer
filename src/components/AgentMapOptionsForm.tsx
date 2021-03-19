@@ -15,13 +15,22 @@ export default function AgentMapOptionsForm({
   const [intentContains, setIntentContains] = useState(
     defaultOptions.intentContains
   );
+  const [startIntent, setStartIntent] = useState(defaultOptions.startIntent);
+  const [depthFromStart, setDepthFromStart] = useState(
+    defaultOptions.depthFromStart
+  );
 
   return (
     <Form
       className="mb-3"
       onSubmit={(ev) => {
         ev.preventDefault();
-        onOptionsChange({ intentLimit, intentContains });
+        onOptionsChange({
+          intentLimit,
+          intentContains,
+          startIntent,
+          depthFromStart,
+        });
       }}
     >
       <Form.Row>
@@ -41,6 +50,26 @@ export default function AgentMapOptionsForm({
             type="text"
             value={intentContains}
             onChange={(ev) => setIntentContains(ev.target.value)}
+          />
+        </Form.Group>
+      </Form.Row>
+      <Form.Row>
+        <Form.Group as={Col} controlId="startIntent">
+          <Form.Label>Start on Intent</Form.Label>
+          <Form.Control
+            type="text"
+            value={startIntent}
+            onChange={(ev) => setStartIntent(ev.target.value)}
+          />
+        </Form.Group>
+        <Form.Group as={Col} controlId="depthFromStart">
+          <Form.Label>Depth from Start</Form.Label>
+          <Form.Control
+            type="number"
+            value={depthFromStart}
+            onChange={(ev) =>
+              setDepthFromStart(Number.parseInt(ev.target.value) || 0)
+            }
           />
         </Form.Group>
       </Form.Row>

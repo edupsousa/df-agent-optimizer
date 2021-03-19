@@ -2,7 +2,7 @@ import AgentMapOptionsForm from "components/AgentMapOptionsForm";
 import NetworkGraph from "components/NetworkGraph";
 import useAgentStore from "hooks/useAgentStore";
 import React, { useState } from "react";
-import { NetworkGraphProps } from "react-graph-vis";
+import { NetworkGraphProps } from "components/NetworkGraph";
 
 export type ContextLinks = {
   inputOn: string[];
@@ -14,6 +14,8 @@ export type OldContextMap = Record<string, ContextLinks>;
 const defaultOptions: NetworkGraphProps["options"] = {
   intentLimit: 25,
   intentContains: "",
+  depthFromStart: 0,
+  startIntent: "",
 };
 
 export default function AgentMapPage() {

@@ -27,9 +27,11 @@ type GraphData = {
   edges: Edge[];
 };
 
-type GraphOptions = {
+export type GraphOptions = {
   intentLimit?: number;
   intentContains?: string;
+  startIntent?: string;
+  depthFromStart?: number;
 };
 
 type NodeMap = Record<string, Node>;
@@ -41,21 +43,38 @@ export default function useAgentGraph(
 ): GraphData {
   const intentLimit = options?.intentLimit;
   const intentContains = options?.intentContains;
+  const startIntent = options?.startIntent;
+  const depthFromStart = options?.depthFromStart;
 
   return useMemo(() => {
     const nodes: NodeMap = {};
     const edges: EdgeMap = {};
 
-    Object.values(agentMap.intents)
-      .filter(
+    let intents: AgentMapIntent[] = [];
+    if (startIntent && depthFromStart) {
+      const pushNextIntents = (intent: AgentMapIntent, depth: number) => {
+        intents.push(intent);
+        if (depth === 0) return;
+        intent.outputContexts
+          .filter(({ lifespan }) => lifespan > 0)
+          .forEach(({ context }) =>
+            context.inputOn.forEach((nextIntent) => {
+              if (intents.includes(nextIntent)) return;
+              pushNextIntents(nextIntent, depth - 1);
+            })
+          );
+      };
+      pushNextIntents(agentMap.intents[startIntent], depthFromStart);
+    } else {
+      intents = [...Object.values(agentMap.intents)];
+    }
+    if (intentContains)
+      intents = intents.filter(
         (intent) =>
-          !(
-            intentContains &&
-            !intent.name.toLowerCase().includes(intentContains.toLowerCase())
-          )
-      )
-      .slice(0, intentLimit)
-      .forEach((intent) => addIntentNode(nodes, edges, intent));
+          !intent.name.toLowerCase().includes(intentContains.toLowerCase())
+      );
+    if (intentLimit) intents = intents.slice(0, intentLimit);
+    intents.forEach((intent) => addIntentNode(nodes, edges, intent));
 
     Object.values(nodes)
       .filter((node): node is IntentNode => "intent" in node)
@@ -83,7 +102,13 @@ export default function useAgentGraph(
       });
 
     return { nodes: Object.values(nodes), edges: Object.values(edges) };
-  }, [agentMap.intents, intentContains, intentLimit]);
+  }, [
+    agentMap.intents,
+    depthFromStart,
+    intentContains,
+    intentLimit,
+    startIntent,
+  ]);
 }
 
 function getIntentNodeId(intent: AgentMapIntent): string {
