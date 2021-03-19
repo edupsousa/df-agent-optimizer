@@ -13,6 +13,7 @@ export type OldContextMap = Record<string, ContextLinks>;
 
 const defaultOptions: NetworkGraphProps["options"] = {
   intentLimit: 25,
+  intentContains: "",
 };
 
 export default function AgentMapPage() {

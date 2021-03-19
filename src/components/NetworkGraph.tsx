@@ -9,6 +9,7 @@ export type NetworkGraphProps = {
   intentList: IntentListItem[];
   options: {
     intentLimit: number;
+    intentContains: string;
   };
 };
 

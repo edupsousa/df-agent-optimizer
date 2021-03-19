@@ -29,6 +29,7 @@ type GraphData = {
 
 type GraphOptions = {
   intentLimit?: number;
+  intentContains?: string;
 };
 
 type NodeMap = Record<string, Node>;
@@ -39,12 +40,20 @@ export default function useAgentGraph(
   options?: GraphOptions
 ): GraphData {
   const intentLimit = options?.intentLimit;
+  const intentContains = options?.intentContains;
 
   return useMemo(() => {
     const nodes: NodeMap = {};
     const edges: EdgeMap = {};
 
     Object.values(agentMap.intents)
+      .filter(
+        (intent) =>
+          !(
+            intentContains &&
+            !intent.name.toLowerCase().includes(intentContains.toLowerCase())
+          )
+      )
       .slice(0, intentLimit)
       .forEach((intent) => addIntentNode(nodes, edges, intent));
 
@@ -74,7 +83,7 @@ export default function useAgentGraph(
       });
 
     return { nodes: Object.values(nodes), edges: Object.values(edges) };
-  }, [agentMap, intentLimit]);
+  }, [agentMap.intents, intentContains, intentLimit]);
 }
 
 function getIntentNodeId(intent: AgentMapIntent): string {

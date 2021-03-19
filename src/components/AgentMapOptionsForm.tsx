@@ -12,13 +12,16 @@ export default function AgentMapOptionsForm({
   defaultOptions,
 }: AgentMapOptionsFormProps) {
   const [intentLimit, setIntentLimit] = useState(defaultOptions.intentLimit);
+  const [intentContains, setIntentContains] = useState(
+    defaultOptions.intentContains
+  );
 
   return (
     <Form
       className="mb-3"
       onSubmit={(ev) => {
         ev.preventDefault();
-        onOptionsChange({ intentLimit });
+        onOptionsChange({ intentLimit, intentContains });
       }}
     >
       <Form.Row>
@@ -30,6 +33,14 @@ export default function AgentMapOptionsForm({
             onChange={(ev) =>
               setIntentLimit(Number.parseInt(ev.target.value) || 0)
             }
+          />
+        </Form.Group>
+        <Form.Group as={Col} controlId="intentFilter">
+          <Form.Label>Filter Intent Name</Form.Label>
+          <Form.Control
+            type="text"
+            value={intentContains}
+            onChange={(ev) => setIntentContains(ev.target.value)}
           />
         </Form.Group>
       </Form.Row>
