@@ -56,7 +56,7 @@ export default function useAgentGraph(
 ): GraphData {
   const mode = options ? options.mode : "filterIntents";
   const intentLimit =
-    options?.mode === "filterIntents" ? options.intentLimit : 0;
+    options?.mode === "filterIntents" ? options.intentLimit : 50;
   const intentFilter =
     options?.mode === "filterIntents" ? options.intentFilter : "";
   const startIntent =
