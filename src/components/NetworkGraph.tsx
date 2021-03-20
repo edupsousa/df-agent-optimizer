@@ -1,4 +1,4 @@
-import useAgentGraph, { GraphOptions } from "hooks/useAgentGraph";
+import useAgentGraph, { AgentGraphOptions } from "hooks/useAgentGraph";
 import useAgentMap from "hooks/useAgentMap";
 import { IntentListItem } from "hooks/useAgentStore/types";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -7,7 +7,7 @@ import { Network, Options } from "vis-network";
 
 export type NetworkGraphProps = {
   intentList: IntentListItem[];
-  options: Required<GraphOptions>;
+  options?: AgentGraphOptions;
 };
 
 const defaultGraphOptions: Options = {

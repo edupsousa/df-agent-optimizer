@@ -1,6 +1,6 @@
+import chroma from "chroma-js";
 import { useMemo } from "react";
 import { AgentMap, AgentMapContext, AgentMapIntent } from "./useAgentMap";
-import chroma from "chroma-js";
 
 type IntentNode = {
   id: string;
@@ -29,31 +29,47 @@ type GraphData = {
   edges: Edge[];
 };
 
-export type GraphOptions = {
-  intentLimit?: number;
-  intentContains?: string;
-  startIntent?: string;
-  depthFromStart?: number;
+export type AgentGraphMode = "filterIntents" | "traverseFromIntent";
+
+type FilterIntentsOptions = {
+  mode: "filterIntents";
+  intentLimit: number;
+  intentContains: string;
 };
+
+type TraverseFromIntentOptions = {
+  mode: "traverseFromIntent";
+  startIntent: string;
+  depthFromStart: number;
+};
+
+export type AgentGraphOptions =
+  | FilterIntentsOptions
+  | TraverseFromIntentOptions;
 
 type NodeMap = Record<string, Node>;
 type EdgeMap = Record<string, Edge>;
 
 export default function useAgentGraph(
   agentMap: AgentMap,
-  options?: GraphOptions
+  options?: AgentGraphOptions
 ): GraphData {
-  const intentLimit = options?.intentLimit;
-  const intentContains = options?.intentContains;
-  const startIntent = options?.startIntent;
-  const depthFromStart = options?.depthFromStart;
+  const mode = options ? options.mode : "filterIntents";
+  const intentLimit =
+    options?.mode === "filterIntents" ? options.intentLimit : 0;
+  const intentContains =
+    options?.mode === "filterIntents" ? options.intentContains : "";
+  const startIntent =
+    options?.mode === "traverseFromIntent" ? options.startIntent : "";
+  const depthFromStart =
+    options?.mode === "traverseFromIntent" ? options.depthFromStart : 0;
 
   return useMemo(() => {
     const nodes: NodeMap = {};
     const edges: EdgeMap = {};
 
     let intents: AgentMapIntent[] = [];
-    if (startIntent && depthFromStart !== undefined) {
+    if (mode === "traverseFromIntent") {
       const pushNextIntents = (
         intent: AgentMapIntent,
         depth: number | null
@@ -73,15 +89,19 @@ export default function useAgentGraph(
         agentMap.intents[startIntent],
         depthFromStart === 0 ? null : depthFromStart
       );
-    } else {
+    } else if (mode === "filterIntents") {
       intents = [...Object.values(agentMap.intents)];
+      if (intentContains.length > 0) {
+        intents = intents.filter(
+          (intent) =>
+            !intent.name.toLowerCase().includes(intentContains.toLowerCase())
+        );
+      }
+      if (intentLimit > 0) {
+        intents = intents.slice(0, intentLimit);
+      }
     }
-    if (intentContains)
-      intents = intents.filter(
-        (intent) =>
-          !intent.name.toLowerCase().includes(intentContains.toLowerCase())
-      );
-    if (intentLimit) intents = intents.slice(0, intentLimit);
+
     const colorFn = chroma
       .scale("Blues")
       .domain([1, countMaxInputContexts(intents)]);
@@ -118,6 +138,7 @@ export default function useAgentGraph(
     depthFromStart,
     intentContains,
     intentLimit,
+    mode,
     startIntent,
   ]);
 }
