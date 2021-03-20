@@ -19,18 +19,34 @@ export default function AgentMapOptionsForm({
         .sort((a, b) => (a > b ? 1 : a < b ? -1 : 0)),
     [intentList]
   );
+  const [graphMode, setGraphMode] = useState<AgentGraphMode>("filterIntents");
   const [intentLimit, setIntentLimit] = useState(50);
   const [intentFilter, setIntentFilter] = useState("");
-  const [startIntent, setStartIntent] = useState("");
+  const [startIntent, setStartIntent] = useState(intents[0]);
   const [depthFromStart, setDepthFromStart] = useState(5);
 
   const graphModes: Record<AgentGraphMode, string> = {
     filterIntents: "Filter Intents",
     traverseFromIntent: "Traverse from Intent",
   };
-  const [graphMode, setGraphMode] = useState<AgentGraphMode>("filterIntents");
 
-  const modeFormFields: Record<keyof typeof graphModes, React.ReactElement> = {
+  const updateOptions = () => {
+    if (graphMode === "filterIntents") {
+      onOptionsChange({
+        mode: graphMode,
+        intentFilter,
+        intentLimit,
+      });
+    } else if (graphMode === "traverseFromIntent") {
+      onOptionsChange({
+        mode: graphMode,
+        startIntent,
+        depthFromStart,
+      });
+    }
+  };
+
+  const modeFormFields: Record<AgentGraphMode, React.ReactElement> = {
     filterIntents: (
       <>
         <Form.Row>
@@ -92,19 +108,7 @@ export default function AgentMapOptionsForm({
       className="mb-3"
       onSubmit={(ev) => {
         ev.preventDefault();
-        if (graphMode === "filterIntents") {
-          onOptionsChange({
-            mode: graphMode,
-            intentFilter,
-            intentLimit,
-          });
-        } else if (graphMode === "traverseFromIntent") {
-          onOptionsChange({
-            mode: graphMode,
-            startIntent,
-            depthFromStart,
-          });
-        }
+        updateOptions();
       }}
     >
       <Form.Row className="mb-2">
