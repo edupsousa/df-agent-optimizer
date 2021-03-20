@@ -34,7 +34,7 @@ export type AgentGraphMode = "filterIntents" | "traverseFromIntent";
 type FilterIntentsOptions = {
   mode: "filterIntents";
   intentLimit: number;
-  intentContains: string;
+  intentFilter: string;
 };
 
 type TraverseFromIntentOptions = {
@@ -57,8 +57,8 @@ export default function useAgentGraph(
   const mode = options ? options.mode : "filterIntents";
   const intentLimit =
     options?.mode === "filterIntents" ? options.intentLimit : 0;
-  const intentContains =
-    options?.mode === "filterIntents" ? options.intentContains : "";
+  const intentFilter =
+    options?.mode === "filterIntents" ? options.intentFilter : "";
   const startIntent =
     options?.mode === "traverseFromIntent" ? options.startIntent : "";
   const depthFromStart =
@@ -70,36 +70,16 @@ export default function useAgentGraph(
 
     let intents: AgentMapIntent[] = [];
     if (mode === "traverseFromIntent") {
-      const pushNextIntents = (
-        intent: AgentMapIntent,
-        depth: number | null
-      ) => {
-        intents.push(intent);
-        if (depth === 0) return;
-        intent.outputContexts
-          .filter(({ lifespan }) => lifespan > 0)
-          .forEach(({ context }) =>
-            context.inputOn.forEach((nextIntent) => {
-              if (intents.includes(nextIntent)) return;
-              pushNextIntents(nextIntent, depth === null ? depth : depth - 1);
-            })
-          );
-      };
-      pushNextIntents(
+      intents = traverseFromIntent(
         agentMap.intents[startIntent],
-        depthFromStart === 0 ? null : depthFromStart
+        depthFromStart
       );
     } else if (mode === "filterIntents") {
-      intents = [...Object.values(agentMap.intents)];
-      if (intentContains.length > 0) {
-        intents = intents.filter(
-          (intent) =>
-            !intent.name.toLowerCase().includes(intentContains.toLowerCase())
-        );
-      }
-      if (intentLimit > 0) {
-        intents = intents.slice(0, intentLimit);
-      }
+      intents = filterIntents(
+        Object.values(agentMap.intents),
+        intentLimit,
+        intentFilter
+      );
     }
 
     const colorFn = chroma
@@ -136,11 +116,49 @@ export default function useAgentGraph(
   }, [
     agentMap.intents,
     depthFromStart,
-    intentContains,
+    intentFilter,
     intentLimit,
     mode,
     startIntent,
   ]);
+}
+
+function filterIntents(
+  intents: AgentMapIntent[],
+  intentLimit: number,
+  intentFilter: string
+): AgentMapIntent[] {
+  if (intentFilter.length > 0) {
+    intents = intents.filter(
+      (intent) =>
+        !intent.name.toLowerCase().includes(intentFilter.toLowerCase())
+    );
+  }
+  if (intentLimit > 0) {
+    intents = intents.slice(0, intentLimit);
+  }
+  return intents;
+}
+
+function traverseFromIntent(
+  startIntent: AgentMapIntent,
+  depthFromStart: number
+): AgentMapIntent[] {
+  let intents: AgentMapIntent[] = [];
+  const pushNextIntents = (intent: AgentMapIntent, depth: number | null) => {
+    intents.push(intent);
+    if (depth === 0) return;
+    intent.outputContexts
+      .filter(({ lifespan }) => lifespan > 0)
+      .forEach(({ context }) =>
+        context.inputOn.forEach((nextIntent) => {
+          if (intents.includes(nextIntent)) return;
+          pushNextIntents(nextIntent, depth === null ? depth : depth - 1);
+        })
+      );
+  };
+  pushNextIntents(startIntent, depthFromStart === 0 ? null : depthFromStart);
+  return intents;
 }
 
 function countMaxInputContexts(intents: AgentMapIntent[]): number {

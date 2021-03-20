@@ -20,7 +20,7 @@ export default function AgentMapOptionsForm({
     [intentList]
   );
   const [intentLimit, setIntentLimit] = useState(50);
-  const [intentContains, setIntentContains] = useState("");
+  const [intentFilter, setIntentFilter] = useState("");
   const [startIntent, setStartIntent] = useState("");
   const [depthFromStart, setDepthFromStart] = useState(5);
 
@@ -48,8 +48,8 @@ export default function AgentMapOptionsForm({
             <Form.Label>Filter Intent Name</Form.Label>
             <Form.Control
               type="text"
-              value={intentContains}
-              onChange={(ev) => setIntentContains(ev.target.value)}
+              value={intentFilter}
+              onChange={(ev) => setIntentFilter(ev.target.value)}
             />
           </Form.Group>
         </Form.Row>
@@ -95,7 +95,7 @@ export default function AgentMapOptionsForm({
         if (graphMode === "filterIntents") {
           onOptionsChange({
             mode: graphMode,
-            intentContains,
+            intentFilter,
             intentLimit,
           });
         } else if (graphMode === "traverseFromIntent") {
