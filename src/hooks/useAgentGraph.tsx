@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { AgentMap, AgentMapContext, AgentMapIntent } from "./useAgentMap";
+import chroma from "chroma-js";
 
 type IntentNode = {
   id: string;
@@ -11,6 +12,7 @@ type InputContextNode = {
   id: string;
   label: string;
   shape: "diamond";
+  color?: string;
 };
 
 type Node = IntentNode | InputContextNode;
@@ -80,7 +82,10 @@ export default function useAgentGraph(
           !intent.name.toLowerCase().includes(intentContains.toLowerCase())
       );
     if (intentLimit) intents = intents.slice(0, intentLimit);
-    intents.forEach((intent) => addIntentNode(nodes, edges, intent));
+    const colorFn = chroma
+      .scale("Blues")
+      .domain([1, countMaxInputContexts(intents)]);
+    intents.forEach((intent) => addIntentNode(nodes, edges, intent, colorFn));
 
     Object.values(nodes)
       .filter((node): node is IntentNode => "intent" in node)
@@ -117,6 +122,14 @@ export default function useAgentGraph(
   ]);
 }
 
+function countMaxInputContexts(intents: AgentMapIntent[]): number {
+  return intents.reduce(
+    (max, { inputContexts }) =>
+      inputContexts.length > max ? inputContexts.length : max,
+    1
+  );
+}
+
 function getIntentNodeId(intent: AgentMapIntent): string {
   return `i#${intent.name}`;
 }
@@ -124,7 +137,8 @@ function getIntentNodeId(intent: AgentMapIntent): string {
 function addIntentNode(
   nodes: NodeMap,
   edges: EdgeMap,
-  intent: AgentMapIntent
+  intent: AgentMapIntent,
+  colorFn: chroma.Scale<chroma.Color>
 ): IntentNode {
   const id = getIntentNodeId(intent);
   if (!nodes[id]) {
@@ -134,7 +148,7 @@ function addIntentNode(
       label: intent.name,
     };
     if (intent.inputContexts.length > 0)
-      addInputContextsNode(nodes, edges, intent);
+      addInputContextsNode(nodes, edges, intent, colorFn);
   }
   return nodes[id] as IntentNode;
 }
@@ -150,7 +164,8 @@ function getInputContextsNodeId(intent: AgentMapIntent): string {
 function addInputContextsNode(
   nodes: NodeMap,
   edges: EdgeMap,
-  intent: AgentMapIntent
+  intent: AgentMapIntent,
+  colorFn: chroma.Scale<chroma.Color>
 ) {
   const contextNames = intent.inputContexts.map((ctx) => ctx.name).sort();
 
@@ -160,6 +175,7 @@ function addInputContextsNode(
       id,
       shape: "diamond",
       label: contextNames.join(", "),
+      color: colorFn(contextNames.length).hex(),
     };
   }
   edges[`${id}->${intent.name}`] = {
