@@ -15,18 +15,18 @@ type InputContextNode = {
   color?: string;
 };
 
-type Node = IntentNode | InputContextNode;
+export type AgentGraphNode = IntentNode | InputContextNode;
 
-type Edge = {
-  from: string;
-  to: string;
+export type AgentGraphEdge = {
+  source: string;
+  target: string;
   label?: string;
   color?: string;
 };
 
 type GraphData = {
-  nodes: Node[];
-  edges: Edge[];
+  nodes: AgentGraphNode[];
+  edges: AgentGraphEdge[];
 };
 
 export type AgentGraphMode = "filterIntents" | "traverseFromIntent";
@@ -47,8 +47,8 @@ export type AgentGraphOptions =
   | FilterIntentsOptions
   | TraverseFromIntentOptions;
 
-type NodeMap = Record<string, Node>;
-type EdgeMap = Record<string, Edge>;
+type NodeMap = Record<string, AgentGraphNode>;
+type EdgeMap = Record<string, AgentGraphEdge>;
 
 export default function useAgentGraph(
   agentMap: AgentMap,
@@ -219,8 +219,8 @@ function addInputContextsNode(
   }
   edges[`${id}->${intent.name}`] = {
     color: "red",
-    from: id,
-    to: getIntentNodeId(intent),
+    source: id,
+    target: getIntentNodeId(intent),
   };
 }
 
@@ -236,7 +236,7 @@ function addEdge(
   if (edges[id]) return;
   edges[id] = {
     label: context.name,
-    from: fromId,
-    to: toId,
+    source: fromId,
+    target: toId,
   };
 }
