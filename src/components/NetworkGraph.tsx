@@ -1,11 +1,9 @@
 import * as d3 from "d3";
-import useAgentGraph, {
-  AgentGraphEdge,
-  AgentGraphNode,
-  AgentGraphOptions,
-} from "hooks/useAgentGraph";
+import { SimulationLinkDatum } from "d3";
+import { AgentGraphOptions } from "hooks/useAgentGraph";
 import useAgentMap from "hooks/useAgentMap";
 import { IntentListItem } from "hooks/useAgentStore/types";
+import useNewGraph from "hooks/useNewGraph";
 import React, { useCallback, useEffect, useRef } from "react";
 import styles from "styles/NetworkGraph.module.css";
 
@@ -14,18 +12,29 @@ export type NetworkGraphProps = {
   options?: AgentGraphOptions;
 };
 
+type NodeDatum = d3.SimulationNodeDatum & { id: string; label: string };
+
 export default function NetworkGraph({
   intentList,
   options,
 }: NetworkGraphProps) {
   const map = useAgentMap(intentList);
-  const graph = useAgentGraph(map, options);
+  const graph = useNewGraph(map);
   const container = useRef<HTMLDivElement>(null);
 
   const renderNetwork = useCallback(() => {
     if (container.current) {
-      const nodes: (d3.SimulationNodeDatum & AgentGraphNode)[] = graph.nodes;
-      const links: AgentGraphEdge[] = graph.edges;
+      const nodes: NodeDatum[] = graph
+        .nodes()
+        .map((id) => ({ id, label: graph.node(id).displayName }));
+      const links: SimulationLinkDatum<NodeDatum>[] = graph
+        .edges()
+        .filter(
+          (edge) =>
+            nodes.find((node) => node.id === edge.v) &&
+            nodes.find((node) => node.id === edge.w)
+        )
+        .map((edge) => ({ source: edge.v, target: edge.w }));
       const { width, height } = container.current.getBoundingClientRect();
 
       const drag = (simulation: d3.Simulation<typeof nodes[0], undefined>) => {
@@ -121,10 +130,7 @@ export default function NetworkGraph({
         .selectAll("path")
         .data(links)
         .join("path")
-        .attr("stroke", (d) => {
-          if (d.color) return d.color;
-          return "#000";
-        })
+        .attr("stroke", "#000")
         .style("opacity", 0.5)
         .attr("marker-end", "url(#end)");
 
@@ -192,7 +198,7 @@ export default function NetworkGraph({
         svg.remove();
       };
     }
-  }, [graph.edges, graph.nodes]);
+  }, [graph]);
 
   useEffect(renderNetwork, [renderNetwork]);
 
