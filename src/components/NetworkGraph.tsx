@@ -132,7 +132,9 @@ export default function NetworkGraph({
         .selectAll("path")
         .data(links)
         .join("path")
-        .attr("stroke", "#969696")
+        .attr("stroke", (d) =>
+          (d.target as NodeDatum).type === "intent" ? "#7fc97f" : "#beaed4"
+        )
         .style("opacity", 0.5)
         .attr("marker-end", "url(#end)");
 
