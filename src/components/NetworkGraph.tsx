@@ -1,37 +1,23 @@
+import * as d3 from "d3";
 import useAgentGraph, {
-  AgentGraphOptions,
-  AgentGraphNode,
   AgentGraphEdge,
+  AgentGraphNode,
+  AgentGraphOptions,
 } from "hooks/useAgentGraph";
 import useAgentMap from "hooks/useAgentMap";
 import { IntentListItem } from "hooks/useAgentStore/types";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ProgressBar } from "react-bootstrap";
-import { Network, Options } from "vis-network";
-import * as d3 from "d3";
+import React, { useCallback, useEffect, useRef } from "react";
+import styles from "styles/NetworkGraph.module.css";
 
 export type NetworkGraphProps = {
   intentList: IntentListItem[];
   options?: AgentGraphOptions;
 };
 
-const defaultGraphOptions: Options = {
-  edges: { arrows: "to" },
-  layout: { improvedLayout: false },
-  physics: {
-    solver: "repulsion",
-    repulsion: {
-      nodeDistance: 250,
-    },
-    minVelocity: 10,
-  },
-};
-
 export default function NetworkGraph({
   intentList,
   options,
 }: NetworkGraphProps) {
-  const [progress, setProgress] = useState(0);
   const map = useAgentMap(intentList);
   const graph = useAgentGraph(map, options);
   const container = useRef<HTMLDivElement>(null);
@@ -41,14 +27,6 @@ export default function NetworkGraph({
       const nodes: (d3.SimulationNodeDatum & AgentGraphNode)[] = graph.nodes;
       const links: AgentGraphEdge[] = graph.edges;
       const { width, height } = container.current.getBoundingClientRect();
-
-      const color = () => {
-        return "#9D79A0";
-      };
-
-      const getClass = (d: typeof nodes[0]) => {
-        return "nodeClass";
-      };
 
       const drag = (simulation: d3.Simulation<typeof nodes[0], undefined>) => {
         const dragstarted = (event: any, d: any) => {
@@ -79,7 +57,10 @@ export default function NetworkGraph({
         .forceSimulation(nodes)
         .force(
           "link",
-          d3.forceLink(links).id((d: any) => d.id)
+          d3
+            .forceLink(links)
+            .id((d: any) => d.id)
+            .distance(100)
         )
         .force("charge", d3.forceManyBody().strength(-150))
         .force("x", d3.forceX())
@@ -101,69 +82,105 @@ export default function NetworkGraph({
 
       zoomHandler(svg);
 
+      svg
+        .append("defs")
+        .selectAll("marker")
+        .data(["end"])
+        .join("marker")
+        .attr("id", "end")
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 0)
+        .attr("refY", 0)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5");
+
+      const linkArc = (d: any) => {
+        const margin = 6;
+        const R = 8 + margin;
+        const vX = d.target.x - d.source.x;
+        const vY = d.target.y - d.source.y;
+        const magV = Math.sqrt(vX * vX + vY * vY);
+        const sX = d.source.x + (vX / magV) * R;
+        const sY = d.source.y + (vY / magV) * R;
+        const tX = d.target.x + (-vX / magV) * R;
+        const tY = d.target.y + (-vY / magV) * R;
+
+        const r = Math.hypot(tX - sX, tY - sY) * 2;
+        return `
+            M${sX},${sY}
+            A${r},${r} 0 0,1 ${tX},${tY}
+          `;
+      };
       const link = g
         .append("g")
-        .attr("stroke", "#999")
-        .attr("stroke-opacity", 0.6)
-        .selectAll("line")
+        .attr("fill", "none")
+        .attr("stroke-width", 1)
+        .selectAll("path")
         .data(links)
-        .join("line")
-        .attr("stroke-width", 1);
+        .join("path")
+        .attr("stroke", (d) => {
+          if (d.color) return d.color;
+          return "#000";
+        })
+        .style("opacity", 0.5)
+        .attr("marker-end", "url(#end)");
 
       const node = g
         .append("g")
+        .attr("stroke-width", 1)
         .attr("stroke", "#fff")
-        .attr("stroke-width", 2)
         .selectAll("circle")
         .data(nodes)
         .join("circle")
-        .attr("r", 12)
-        .attr("fill", color)
+        .attr("r", 8)
+        .attr("fill", (d: any) => {
+          if (d.color) return d.color;
+          return "#9D79A0";
+        })
+        .style("opacity", 0.5)
+        .call(drag(simulation) as any)
+        .on("mouseover", (event, d) => {
+          console.log(d.id);
+          node.classed(styles.selected, (n) => n === d);
+          link.classed(
+            styles.selected,
+            (l: any) => l.source.id === d.id || l.target.id === d.id
+          );
+          label.classed(styles.selected, (l) => l.id === d.id);
+        });
+
+      const label = g
+        .append("g")
+        .attr("class", "labels")
+        .selectAll("text")
+        .data(nodes)
+        .enter()
+        .append("text")
+        .attr("text-anchor", "right")
+        .attr("dominant-baseline", "central")
+        .style("font-size", "0.5em")
+        .style("opacity", 0.5)
+        .text((d) => {
+          return d.label;
+        })
         .call(drag(simulation) as any);
 
-      // const label = g
-      //   .append("g")
-      //   .attr("class", "labels")
-      //   .selectAll("text")
-      //   .data(nodes)
-      //   .enter()
-      //   .append("text")
-      //   .attr("text-anchor", "middle")
-      //   .attr("dominant-baseline", "central")
-      //   .attr("class", (d) => `fa ${getClass(d)}`)
-      //   .text((d) => {
-      //     return d.label;
-      //   })
-      //   .call(drag(simulation) as any);
-
-      // label
-      //   .on("mouseover", (event, d) => {
-      //     console.log("mouseover", d);
-      //   })
-      //   .on("mouseout", (event, d) => {
-      //     console.log("mouseout", d);
-      //   });
-
       simulation.on("tick", () => {
-        //update link positions
-        link
-          .attr("x1", (d: any) => d.source.x)
-          .attr("y1", (d: any) => d.source.y)
-          .attr("x2", (d: any) => d.target.x)
-          .attr("y2", (d: any) => d.target.y);
-
-        // update node positions
         node
           .attr("cx", (d: any): number => d.x)
           .attr("cy", (d: any): number => d.y);
 
-        // label
-        //   .attr("x", (d) => {
-        //     return d.x as number;
-        //   })
-        //   .attr("y", (d) => {
-        //     return d.y as number;
-        //   });
+        link.attr("d", linkArc);
+        label
+          .attr("x", (d) => {
+            return (d.x as number) + 10;
+          })
+          .attr("y", (d) => {
+            return d.y as number;
+          });
       });
       return () => {
         simulation.stop();
@@ -185,10 +202,6 @@ export default function NetworkGraph({
           overflow: "hidden",
         }}
       ></div>
-      <ProgressBar
-        now={progress}
-        label={`${progress}% - ${graph.nodes.length} nodes and ${graph.edges.length} edges`}
-      />
     </div>
   );
 }

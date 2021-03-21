@@ -84,7 +84,7 @@ export default function useAgentGraph(
 
     const colorFn = chroma
       .scale("Blues")
-      .domain([1, countMaxInputContexts(intents)]);
+      .domain([0, countMaxInputContexts(intents)]);
     intents.forEach((intent) => addIntentNode(nodes, edges, intent, colorFn));
 
     Object.values(nodes)
