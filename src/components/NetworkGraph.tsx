@@ -12,7 +12,11 @@ export type NetworkGraphProps = {
   options?: AgentGraphOptions;
 };
 
-type NodeDatum = d3.SimulationNodeDatum & { id: string; label: string };
+type NodeDatum = d3.SimulationNodeDatum & {
+  id: string;
+  label: string;
+  type: string;
+};
 
 export default function NetworkGraph({
   intentList,
@@ -24,17 +28,14 @@ export default function NetworkGraph({
 
   const renderNetwork = useCallback(() => {
     if (container.current) {
-      const nodes: NodeDatum[] = graph
-        .nodes()
-        .map((id) => ({ id, label: graph.node(id).displayName }));
+      const nodes: NodeDatum[] = graph.nodes().map((id) => {
+        const n = graph.node(id);
+        return { id, label: n.displayName, type: n.type };
+      });
       const links: SimulationLinkDatum<NodeDatum>[] = graph
         .edges()
-        .filter(
-          (edge) =>
-            nodes.find((node) => node.id === edge.v) &&
-            nodes.find((node) => node.id === edge.w)
-        )
         .map((edge) => ({ source: edge.v, target: edge.w }));
+
       const { width, height } = container.current.getBoundingClientRect();
 
       const drag = (simulation: d3.Simulation<typeof nodes[0], undefined>) => {
@@ -104,7 +105,8 @@ export default function NetworkGraph({
         .attr("markerHeight", 6)
         .attr("orient", "auto")
         .append("path")
-        .attr("d", "M0,-5L10,0L0,5");
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", "#969696");
 
       const linkArc = (d: any) => {
         const margin = 6;
@@ -130,7 +132,7 @@ export default function NetworkGraph({
         .selectAll("path")
         .data(links)
         .join("path")
-        .attr("stroke", "#000")
+        .attr("stroke", "#969696")
         .style("opacity", 0.5)
         .attr("marker-end", "url(#end)");
 
@@ -142,10 +144,7 @@ export default function NetworkGraph({
         .data(nodes)
         .join("circle")
         .attr("r", 8)
-        .attr("fill", (d: any) => {
-          if (d.color) return d.color;
-          return "#9D79A0";
-        })
+        .attr("fill", (d) => (d.type === "intent" ? "#7fc97f" : "#beaed4"))
         .style("opacity", 0.5)
         .call(drag(simulation) as any)
         .on("mouseover", (event, d) => {
