@@ -150,6 +150,11 @@ export default function NetworkGraph({
             (l: any) => l.source.id === d.id || l.target.id === d.id
           );
           label.classed(styles.selected, (l) => l.id === d.id);
+        })
+        .on("mouseout", () => {
+          node.classed(styles.selected, false);
+          link.classed(styles.selected, false);
+          label.classed(styles.selected, false);
         });
 
       const label = g
