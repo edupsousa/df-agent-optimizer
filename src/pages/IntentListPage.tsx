@@ -8,7 +8,7 @@ import { IntentListItem } from "hooks/useAgentStore/types";
 import React, { useCallback, useMemo, useState } from "react";
 import { Alert, ListGroup } from "react-bootstrap";
 
-export default function RenameIntents() {
+export default function IntentListPage() {
   const [{ filterFunction, renameFunction }, setFilterAndRenameFn] = useState<{
     filterFunction: IntentFilterFn;
     renameFunction: IntentRenameFn;
@@ -82,7 +82,7 @@ export default function RenameIntents() {
 
   return (
     <div>
-      <h1>Rename Intents</h1>
+      <h1>Intent List/Rename</h1>
       <RenameIntentsForm
         {...{ handleSubmit, disableRename }}
         onFormChange={handleFormChange}

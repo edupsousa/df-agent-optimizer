@@ -15,18 +15,21 @@ export default function AppNavBar() {
         <Nav className="mr-auto">
           {agentConfig && (
             <>
-              <Link href="/intents">
-                <Nav.Link>List Intents</Nav.Link>
-              </Link>
-              <Link href="/rename-intents">
+              <Link href="/intent-list">
                 <Nav.Link>Rename Intents</Nav.Link>
               </Link>
-              <Link href="/diagram">
-                <Nav.Link>Diagram</Nav.Link>
+              <Link href="/agent-map">
+                <Nav.Link>Agent Map</Nav.Link>
               </Link>
             </>
           )}
-          {!agentConfig && <Nav.Link href="#home">Import Agent</Nav.Link>}
+          {!agentConfig && (
+            <>
+              <Link href="/import-agent">
+                <Nav.Link>Import Agent</Nav.Link>
+              </Link>
+            </>
+          )}
         </Nav>
         <Navbar.Text>
           Agent: {!agentConfig && <span>None</span>}

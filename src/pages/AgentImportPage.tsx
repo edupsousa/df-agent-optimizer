@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button, Col, Form } from "react-bootstrap";
 import useAgentStore from "hooks/useAgentStore";
 
-export default function AgentImportForm() {
+export default function AgentImportPage() {
   const state = useAgentStore();
   const [zipFile, setZipFile] = useState<null | File>(null);
   const handleSubmit = async (ev: React.FormEvent<HTMLFormElement>) => {

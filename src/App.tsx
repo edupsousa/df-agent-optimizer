@@ -1,12 +1,11 @@
+import AppNavBar from "components/AppNavBar";
+import useAgentStore from "hooks/useAgentStore";
+import AgentImportPage from "pages/AgentImportPage";
+import AgentMapPage from "pages/AgentMapPage";
+import IntentListPage from "pages/IntentListPage";
 import React from "react";
 import { Container } from "react-bootstrap";
 import { Redirect, Route, Switch } from "wouter";
-import AgentImportForm from "pages/AgentImportForm";
-import AppNavBar from "components/AppNavBar";
-import IntentList from "pages/IntentList";
-import RenameIntents from "pages/RenameIntents";
-import useAgentStore from "hooks/useAgentStore";
-import AgentMapPage from "pages/AgentMapPage";
 
 function App() {
   const state = useAgentStore();
@@ -14,22 +13,21 @@ function App() {
   return (
     <>
       <AppNavBar />
-      <Container>
+      <Container fluid>
         {state.agentConfig && (
           <Switch>
-            <Route path="/intents" component={IntentList} />
-            <Route path="/rename-intents" component={RenameIntents} />
-            <Route path="/diagram" component={AgentMapPage} />
+            <Route path="/intent-list" component={IntentListPage} />
+            <Route path="/agent-map" component={AgentMapPage} />
             <Route>
-              <Redirect to="/intents" />
+              <Redirect to="/intent-list" />
             </Route>
           </Switch>
         )}
         {!state.agentConfig && (
           <Switch>
-            <Route path="/import" component={AgentImportForm} />
+            <Route path="/import-agent" component={AgentImportPage} />
             <Route>
-              <Redirect to="/import" />
+              <Redirect to="/import-agent" />
             </Route>
           </Switch>
         )}

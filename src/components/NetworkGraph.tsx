@@ -1,6 +1,5 @@
 import * as d3 from "d3";
 import { SimulationLinkDatum } from "d3";
-import { AgentGraphOptions } from "hooks/useAgentGraph";
 import useAgentMap from "hooks/useAgentMap";
 import { IntentListItem } from "hooks/useAgentStore/types";
 import useNewGraph from "hooks/useNewGraph";
@@ -9,7 +8,7 @@ import styles from "styles/NetworkGraph.module.css";
 
 export type NetworkGraphProps = {
   intentList: IntentListItem[];
-  options?: AgentGraphOptions;
+  onSelectionChange: (intentName: string) => void;
 };
 
 type NodeDatum = d3.SimulationNodeDatum & {
@@ -20,7 +19,7 @@ type NodeDatum = d3.SimulationNodeDatum & {
 
 export default function NetworkGraph({
   intentList,
-  options,
+  onSelectionChange: onIntentSelected,
 }: NetworkGraphProps) {
   const map = useAgentMap(intentList);
   const graph = useNewGraph(map);
@@ -183,6 +182,11 @@ export default function NetworkGraph({
           link.classed(styles.faded, false);
           label.classed(styles.highlighted, false);
           label.classed(styles.faded, false);
+        })
+        .on("click", (event, d) => {
+          if (d.type === "intent") {
+            onIntentSelected(d.label);
+          }
         });
 
       const label = g
@@ -220,21 +224,19 @@ export default function NetworkGraph({
         svg.remove();
       };
     }
-  }, [graph]);
+  }, [graph, onIntentSelected]);
 
   useEffect(renderNetwork, [renderNetwork]);
 
   return (
-    <div>
-      <div
-        ref={container}
-        style={{
-          width: "100%",
-          height: "600px",
-          border: "1px solid lightgray",
-          overflow: "hidden",
-        }}
-      ></div>
-    </div>
+    <div
+      ref={container}
+      style={{
+        width: "100%",
+        height: "700px",
+        border: "1px solid lightgray",
+        overflow: "hidden",
+      }}
+    ></div>
   );
 }
