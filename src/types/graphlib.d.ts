@@ -332,7 +332,7 @@ declare module "graphlib" {
      * @returns node identifiers list or undefined if v is not in the graph.
      */
 
-    neighbors(v: string): void | string[];
+    neighbors(v: string): undefined | string[];
 
     /**
      * Whether graph was created with 'directed' flag set to true or not.

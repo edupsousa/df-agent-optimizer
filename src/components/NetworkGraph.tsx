@@ -148,18 +148,39 @@ export default function NetworkGraph({
         .style("opacity", 0.5)
         .call(drag(simulation) as any)
         .on("mouseover", (event, d) => {
-          console.log(d.id);
-          node.classed(styles.selected, (n) => n === d);
+          const neighbors = graph.neighbors(d.id) || [];
+          node.classed(
+            styles.highlighted,
+            (n) => d.id === n.id || neighbors.includes(n.id)
+          );
+          node.classed(
+            styles.faded,
+            (n) => !(d.id === n.id || neighbors.includes(n.id))
+          );
           link.classed(
-            styles.selected,
+            styles.highlighted,
             (l: any) => l.source.id === d.id || l.target.id === d.id
           );
-          label.classed(styles.selected, (l) => l.id === d.id);
+          link.classed(
+            styles.faded,
+            (l: any) => !(l.source.id === d.id || l.target.id === d.id)
+          );
+          label.classed(
+            styles.highlighted,
+            (l) => l.id === d.id || neighbors.includes(l.id)
+          );
+          label.classed(
+            styles.faded,
+            (l) => !(l.id === d.id || neighbors.includes(l.id))
+          );
         })
         .on("mouseout", () => {
-          node.classed(styles.selected, false);
-          link.classed(styles.selected, false);
-          label.classed(styles.selected, false);
+          node.classed(styles.highlighted, false);
+          node.classed(styles.faded, false);
+          link.classed(styles.highlighted, false);
+          link.classed(styles.faded, false);
+          label.classed(styles.highlighted, false);
+          label.classed(styles.faded, false);
         });
 
       const label = g

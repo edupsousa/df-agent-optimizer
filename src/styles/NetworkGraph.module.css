@@ -1,3 +1,6 @@
-.selected {
+.highlighted {
   opacity: 1 !important;
+}
+.faded {
+  opacity: 0.2 !important;
 }
