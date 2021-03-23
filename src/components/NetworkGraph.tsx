@@ -9,7 +9,10 @@ import styles from "styles/NetworkGraph.module.css";
 
 type NetworkGraphProps = {
   intentList: IntentListItem[];
-  onSelectionChange: (intentName: string) => void;
+  onSelectionChange: (
+    nodeType: "intent" | "inputContext",
+    name: string
+  ) => void;
 };
 
 type NodeDatum = SimulationNodeDatum & {
@@ -34,7 +37,7 @@ type LabelType = d3.Selection<SVGTextElement, NodeDatum, SVGGElement, unknown>;
 
 export default function NetworkGraph({
   intentList,
-  onSelectionChange: onIntentSelected,
+  onSelectionChange,
 }: NetworkGraphProps) {
   const agentMap = useAgentMap(intentList);
   const agentGraph = useNewGraph(agentMap);
@@ -64,13 +67,13 @@ export default function NetworkGraph({
         node
           .on("mouseover", nodeMouseOverHandler(agentGraph, node, link, label))
           .on("mouseout", nodeMouseOutHandler(node, link, label))
-          .on("click", nodeClickHandler(onIntentSelected));
+          .on("click", nodeClickHandler(onSelectionChange));
 
         simulation.on("tick", simulationTickHandler(node, link, label));
 
         return cleanup(simulation, svg);
       },
-      [agentGraph, onIntentSelected]
+      [agentGraph, onSelectionChange]
     )
   );
 
@@ -128,11 +131,11 @@ function simulationTickHandler(
 }
 
 function nodeClickHandler(
-  onIntentSelected: (intentName: string) => void
+  nodeSelectionHandler: (type: "intent" | "inputContext", name: string) => void
 ): (this: d3.BaseType | SVGCircleElement, event: any, d: NodeDatum) => void {
   return (event, d) => {
-    if (d.type === "intent") {
-      onIntentSelected(d.label);
+    if (d.type === "intent" || d.type === "inputContext") {
+      nodeSelectionHandler(d.type, d.label);
     }
   };
 }
