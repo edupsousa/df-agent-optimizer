@@ -7,18 +7,17 @@ import useNewGraph from "hooks/useNewGraph";
 import React, { useCallback, useRef } from "react";
 import styles from "styles/NetworkGraph.module.css";
 
+type NodeDatumType = "intent" | "inputContext";
+
 type NetworkGraphProps = {
   intentList: IntentListItem[];
-  onSelectionChange: (
-    nodeType: "intent" | "inputContext",
-    name: string
-  ) => void;
+  onSelectionChange: (nodeType: NodeDatumType, name: string) => void;
 };
 
 type NodeDatum = SimulationNodeDatum & {
   id: string;
   label: string;
-  type: string;
+  type: NodeDatumType;
 };
 type LinkDatum = SimulationLinkDatum<NodeDatum>;
 type NodeType = d3.Selection<
@@ -40,6 +39,7 @@ export default function NetworkGraph({
   onSelectionChange,
 }: NetworkGraphProps) {
   const selectedNode = useRef<NodeDatum | null>(null);
+  const mouseOnNode = useRef<NodeDatum | null>(null);
   const agentMap = useAgentMap(intentList);
   const agentGraph = useNewGraph(agentMap);
 
@@ -66,39 +66,29 @@ export default function NetworkGraph({
         simulation
       );
 
-      const updateHighlights = () => {
-        let highlightedNodes: Record<string, boolean> = {};
-
-        if (selectedNode.current) {
-          highlightedNodes[selectedNode.current.id] = true;
-          const neighbors = agentGraph.neighbors(selectedNode.current.id);
-          if (neighbors)
-            neighbors.forEach((id) => (highlightedNodes[id] = true));
-        }
-
-        node.classed(styles.hightlighted, (n) => highlightedNodes[n.id]);
-        label.classed(styles.highlighted, (n) => highlightedNodes[n.id]);
-        link.classed(
-          styles.highlighted,
-          (l: any) =>
-            highlightedNodes[l.source.id] || highlightedNodes[l.target.id]
+      const highlightNodes = () =>
+        updateHighlights(
+          [selectedNode.current, mouseOnNode.current],
+          agentGraph,
+          node,
+          link,
+          label
         );
-        node.classed(styles.faded, (n) => !highlightedNodes[n.id]);
-        label.classed(styles.faded, (n) => !highlightedNodes[n.id]);
-        link.classed(
-          styles.faded,
-          (l: any) =>
-            !(highlightedNodes[l.source.id] || highlightedNodes[l.target.id])
-        );
-      };
 
-      node.on("click", (event, d) => {
-        if (d.type === "intent" || d.type === "inputContext") {
+      node
+        .on("click", (ev, d) => {
           selectedNode.current = d;
-          updateHighlights();
+          highlightNodes();
           onSelectionChange(d.type, d.label);
-        }
-      });
+        })
+        .on("mouseenter", (ev, d) => {
+          mouseOnNode.current = d;
+          highlightNodes();
+        })
+        .on("mouseleave", (ev, d) => {
+          mouseOnNode.current = null;
+          highlightNodes();
+        });
 
       simulation.on("tick", simulationTickHandler(node, link, label));
 
@@ -132,6 +122,44 @@ function cleanup(
   };
 }
 
+function updateHighlights(
+  selectedNodes: (NodeDatum | null)[],
+  agentGraph: ReturnType<typeof useNewGraph>,
+  node: NodeType,
+  link: LinkType,
+  label: LabelType
+) {
+  const highlightedNodes: Record<string, boolean> = {};
+  const highlightLinksOf: Record<string, boolean> = {};
+
+  const addNodeAndNeighbors = (id: string) => {
+    highlightLinksOf[id] = true;
+    highlightedNodes[id] = true;
+    const neighbors = agentGraph.neighbors(id);
+    if (neighbors) {
+      neighbors.forEach((id) => (highlightedNodes[id] = true));
+    }
+  };
+
+  selectedNodes
+    .filter((n): n is NodeDatum => n !== null)
+    .forEach(({ id }) => addNodeAndNeighbors(id));
+
+  node.classed(styles.hightlighted, (n) => highlightedNodes[n.id]);
+  label.classed(styles.highlighted, (n) => highlightedNodes[n.id]);
+  link.classed(
+    styles.highlighted,
+    (l: any) => highlightLinksOf[l.source.id] || highlightLinksOf[l.target.id]
+  );
+  node.classed(styles.faded, (n) => !highlightedNodes[n.id]);
+  label.classed(styles.faded, (n) => !highlightedNodes[n.id]);
+  link.classed(
+    styles.faded,
+    (l: any) =>
+      !(highlightLinksOf[l.source.id] || highlightLinksOf[l.target.id])
+  );
+}
+
 function mapLinks(agentGraph: ReturnType<typeof useNewGraph>): LinkDatum[] {
   return agentGraph.edges().map((edge) => ({ source: edge.v, target: edge.w }));
 }
@@ -159,66 +187,6 @@ function simulationTickHandler(
       .attr("y", (d) => {
         return d.y!;
       });
-  };
-}
-
-function nodeMouseOutHandler(
-  node: NodeType,
-  link: LinkType,
-  label: LabelType
-): (this: d3.BaseType | SVGCircleElement, event: any, d: NodeDatum) => void {
-  return () => {
-    node.classed(styles.highlighted, false);
-    node.classed(styles.faded, false);
-    link.classed(styles.highlighted, false);
-    link.classed(styles.faded, false);
-    label.classed(styles.highlighted, false);
-    label.classed(styles.faded, false);
-  };
-}
-
-function highlightNeightbors(
-  d: NodeDatum,
-  agentGraph: ReturnType<typeof useNewGraph>,
-  node: NodeType,
-  link: LinkType,
-  label: LabelType
-) {
-  const neighbors = agentGraph.neighbors(d.id) || [];
-  node.classed(
-    styles.highlighted,
-    (n) => d.id === n.id || neighbors.includes(n.id)
-  );
-  node.classed(
-    styles.faded,
-    (n) => !(d.id === n.id || neighbors.includes(n.id))
-  );
-  link.classed(
-    styles.highlighted,
-    (l: any) => l.source.id === d.id || l.target.id === d.id
-  );
-  link.classed(
-    styles.faded,
-    (l: any) => !(l.source.id === d.id || l.target.id === d.id)
-  );
-  label.classed(
-    styles.highlighted,
-    (l) => l.id === d.id || neighbors.includes(l.id)
-  );
-  label.classed(
-    styles.faded,
-    (l) => !(l.id === d.id || neighbors.includes(l.id))
-  );
-}
-
-function nodeMouseOverHandler(
-  agentGraph: ReturnType<typeof useNewGraph>,
-  node: NodeType,
-  link: LinkType,
-  label: LabelType
-): (this: d3.BaseType | SVGCircleElement, event: any, d: NodeDatum) => void {
-  return (event, d) => {
-    highlightNeightbors(d, agentGraph, node, link, label);
   };
 }
 
