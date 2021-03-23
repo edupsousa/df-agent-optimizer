@@ -4,7 +4,7 @@ import useAgentMap from "hooks/useAgentMap";
 import { IntentListItem } from "hooks/useAgentStore/types";
 import useD3 from "hooks/useD3";
 import useNewGraph from "hooks/useNewGraph";
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import styles from "styles/NetworkGraph.module.css";
 
 type NetworkGraphProps = {
@@ -39,6 +39,7 @@ export default function NetworkGraph({
   intentList,
   onSelectionChange,
 }: NetworkGraphProps) {
+  const selectedNode = useRef<NodeDatum | null>(null);
   const agentMap = useAgentMap(intentList);
   const agentGraph = useNewGraph(agentMap);
 
@@ -65,10 +66,39 @@ export default function NetworkGraph({
         simulation
       );
 
-      node
-        .on("mouseover", nodeMouseOverHandler(agentGraph, node, link, label))
-        .on("mouseout", nodeMouseOutHandler(node, link, label))
-        .on("click", nodeClickHandler(onSelectionChange));
+      const updateHighlights = () => {
+        let highlightedNodes: Record<string, boolean> = {};
+
+        if (selectedNode.current) {
+          highlightedNodes[selectedNode.current.id] = true;
+          const neighbors = agentGraph.neighbors(selectedNode.current.id);
+          if (neighbors)
+            neighbors.forEach((id) => (highlightedNodes[id] = true));
+        }
+
+        node.classed(styles.hightlighted, (n) => highlightedNodes[n.id]);
+        label.classed(styles.highlighted, (n) => highlightedNodes[n.id]);
+        link.classed(
+          styles.highlighted,
+          (l: any) =>
+            highlightedNodes[l.source.id] || highlightedNodes[l.target.id]
+        );
+        node.classed(styles.faded, (n) => !highlightedNodes[n.id]);
+        label.classed(styles.faded, (n) => !highlightedNodes[n.id]);
+        link.classed(
+          styles.faded,
+          (l: any) =>
+            !(highlightedNodes[l.source.id] || highlightedNodes[l.target.id])
+        );
+      };
+
+      node.on("click", (event, d) => {
+        if (d.type === "intent" || d.type === "inputContext") {
+          selectedNode.current = d;
+          updateHighlights();
+          onSelectionChange(d.type, d.label);
+        }
+      });
 
       simulation.on("tick", simulationTickHandler(node, link, label));
 
@@ -132,16 +162,6 @@ function simulationTickHandler(
   };
 }
 
-function nodeClickHandler(
-  nodeSelectionHandler: (type: "intent" | "inputContext", name: string) => void
-): (this: d3.BaseType | SVGCircleElement, event: any, d: NodeDatum) => void {
-  return (event, d) => {
-    if (d.type === "intent" || d.type === "inputContext") {
-      nodeSelectionHandler(d.type, d.label);
-    }
-  };
-}
-
 function nodeMouseOutHandler(
   node: NodeType,
   link: LinkType,
@@ -157,6 +177,40 @@ function nodeMouseOutHandler(
   };
 }
 
+function highlightNeightbors(
+  d: NodeDatum,
+  agentGraph: ReturnType<typeof useNewGraph>,
+  node: NodeType,
+  link: LinkType,
+  label: LabelType
+) {
+  const neighbors = agentGraph.neighbors(d.id) || [];
+  node.classed(
+    styles.highlighted,
+    (n) => d.id === n.id || neighbors.includes(n.id)
+  );
+  node.classed(
+    styles.faded,
+    (n) => !(d.id === n.id || neighbors.includes(n.id))
+  );
+  link.classed(
+    styles.highlighted,
+    (l: any) => l.source.id === d.id || l.target.id === d.id
+  );
+  link.classed(
+    styles.faded,
+    (l: any) => !(l.source.id === d.id || l.target.id === d.id)
+  );
+  label.classed(
+    styles.highlighted,
+    (l) => l.id === d.id || neighbors.includes(l.id)
+  );
+  label.classed(
+    styles.faded,
+    (l) => !(l.id === d.id || neighbors.includes(l.id))
+  );
+}
+
 function nodeMouseOverHandler(
   agentGraph: ReturnType<typeof useNewGraph>,
   node: NodeType,
@@ -164,31 +218,7 @@ function nodeMouseOverHandler(
   label: LabelType
 ): (this: d3.BaseType | SVGCircleElement, event: any, d: NodeDatum) => void {
   return (event, d) => {
-    const neighbors = agentGraph.neighbors(d.id) || [];
-    node.classed(
-      styles.highlighted,
-      (n) => d.id === n.id || neighbors.includes(n.id)
-    );
-    node.classed(
-      styles.faded,
-      (n) => !(d.id === n.id || neighbors.includes(n.id))
-    );
-    link.classed(
-      styles.highlighted,
-      (l: any) => l.source.id === d.id || l.target.id === d.id
-    );
-    link.classed(
-      styles.faded,
-      (l: any) => !(l.source.id === d.id || l.target.id === d.id)
-    );
-    label.classed(
-      styles.highlighted,
-      (l) => l.id === d.id || neighbors.includes(l.id)
-    );
-    label.classed(
-      styles.faded,
-      (l) => !(l.id === d.id || neighbors.includes(l.id))
-    );
+    highlightNeightbors(d, agentGraph, node, link, label);
   };
 }
 
