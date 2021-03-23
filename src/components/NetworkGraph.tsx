@@ -42,40 +42,42 @@ export default function NetworkGraph({
   const agentMap = useAgentMap(intentList);
   const agentGraph = useNewGraph(agentMap);
 
-  const container = useD3<HTMLDivElement>(
-    useCallback(
-      (root) => {
-        const nodesDatum: NodeDatum[] = mapNodes(agentGraph);
-        const linksDatum: LinkDatum[] = mapLinks(agentGraph);
-        const simulation = createSimulation(nodesDatum, linksDatum);
-        const svg = createSVG(root);
-        createMarkers(svg);
-        const plotArea = createPlotArea(svg);
-        applyZoomHandler(plotArea, svg);
-        const link: LinkType = createLinkElements(plotArea, linksDatum);
-        const node: NodeType = createNodeElements(
-          plotArea,
-          nodesDatum,
-          simulation
-        );
-        const label: LabelType = createLabelElements(
-          plotArea,
-          nodesDatum,
-          simulation
-        );
+  const renderNetwork = useCallback(
+    (
+      root: d3.Selection<HTMLDivElement, unknown, null, undefined>
+    ): (() => void) => {
+      const nodesDatum: NodeDatum[] = mapNodes(agentGraph);
+      const linksDatum: LinkDatum[] = mapLinks(agentGraph);
+      const simulation = createSimulation(nodesDatum, linksDatum);
+      const svg = createSVG(root);
+      createMarkers(svg);
+      const plotArea = createPlotArea(svg);
+      applyZoomHandler(plotArea, svg);
+      const link: LinkType = createLinkElements(plotArea, linksDatum);
+      const node: NodeType = createNodeElements(
+        plotArea,
+        nodesDatum,
+        simulation
+      );
+      const label: LabelType = createLabelElements(
+        plotArea,
+        nodesDatum,
+        simulation
+      );
 
-        node
-          .on("mouseover", nodeMouseOverHandler(agentGraph, node, link, label))
-          .on("mouseout", nodeMouseOutHandler(node, link, label))
-          .on("click", nodeClickHandler(onSelectionChange));
+      node
+        .on("mouseover", nodeMouseOverHandler(agentGraph, node, link, label))
+        .on("mouseout", nodeMouseOutHandler(node, link, label))
+        .on("click", nodeClickHandler(onSelectionChange));
 
-        simulation.on("tick", simulationTickHandler(node, link, label));
+      simulation.on("tick", simulationTickHandler(node, link, label));
 
-        return cleanup(simulation, svg);
-      },
-      [agentGraph, onSelectionChange]
-    )
+      return cleanup(simulation, svg);
+    },
+    [agentGraph, onSelectionChange]
   );
+
+  const container = useD3<HTMLDivElement>(renderNetwork);
 
   return (
     <div
