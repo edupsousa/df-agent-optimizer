@@ -16,10 +16,23 @@ export type StateProperties = {
 
 export type IntentToRename = IntentListItem & { newName: string };
 
+type IntentChange = {
+  change: "added" | "updated" | "removed";
+  intentFile: IntentListItem;
+};
+export type IntentChangeList = IntentChange[];
+
 export type StateActions = {
   loadAgent: (data: File | ArrayBuffer) => Promise<void>;
   unloadAgent: () => void;
   renameIntents: (intents: IntentToRename[]) => Promise<void>;
+  removeInputContext: (
+    intentName: string,
+    contextName: string
+  ) => Promise<void>;
+  subscribeToIntentChanges: (
+    changeHandler: (changes: IntentChangeList) => void
+  ) => void;
 };
 
 export type State = StateProperties & StateActions;

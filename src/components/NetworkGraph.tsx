@@ -1,16 +1,16 @@
 import * as d3 from "d3";
 import { SimulationLinkDatum, SimulationNodeDatum } from "d3";
 import useAgentMap from "hooks/useAgentMap";
+import useAgentStore from "hooks/useAgentStore";
 import { IntentListItem } from "hooks/useAgentStore/types";
 import useD3 from "hooks/useD3";
 import useNewGraph from "hooks/useNewGraph";
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import styles from "styles/NetworkGraph.module.css";
 
 type NodeDatumType = "intent" | "inputContext";
 
 type NetworkGraphProps = {
-  intentList: IntentListItem[];
   onSelectionChange: (nodeType: NodeDatumType, name: string) => void;
 };
 
@@ -34,14 +34,37 @@ type LinkType = d3.Selection<
 >;
 type LabelType = d3.Selection<SVGTextElement, NodeDatum, SVGGElement, unknown>;
 
-export default function NetworkGraph({
-  intentList,
-  onSelectionChange,
-}: NetworkGraphProps) {
+export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
+  const { subscribeToIntentChanges } = useAgentStore();
+  const [intentList, setIntentList] = useState<IntentListItem[]>([]);
   const selectedNode = useRef<NodeDatum | null>(null);
   const mouseOnNode = useRef<NodeDatum | null>(null);
   const agentMap = useAgentMap(intentList);
   const agentGraph = useNewGraph(agentMap);
+
+  useEffect(() => {
+    subscribeToIntentChanges((changes) => {
+      console.log("go");
+      setIntentList((current) => {
+        let newList = current.slice();
+        changes.forEach((change) => {
+          if (change.change === "added") {
+            newList.push(change.intentFile);
+          } else if (change.change === "removed") {
+            newList = newList.filter(
+              (item) => item.filename !== change.intentFile.filename
+            );
+          } else if (change.change === "updated") {
+            const itemIndex = newList.findIndex(
+              (item) => item.filename === change.intentFile.filename
+            );
+            newList[itemIndex] = change.intentFile;
+          }
+        });
+        return newList;
+      });
+    });
+  }, [subscribeToIntentChanges]);
 
   const renderNetwork = useCallback(
     (

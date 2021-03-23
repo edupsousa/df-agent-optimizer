@@ -1,7 +1,6 @@
 import InputContexstDetails from "components/InputContexstDetails";
 import IntentDetails from "components/IntentDetails";
 import NetworkGraph from "components/NetworkGraph";
-import useAgentStore from "hooks/useAgentStore";
 import React, { useCallback, useState } from "react";
 import { Col, Row } from "react-bootstrap";
 
@@ -13,7 +12,6 @@ export type ContextLinks = {
 export type OldContextMap = Record<string, ContextLinks>;
 
 export default function AgentMapPage() {
-  const { intentList } = useAgentStore();
   const [selection, setSelection] = useState<{
     type: "intent" | "inputContext";
     name: string;
@@ -28,10 +26,7 @@ export default function AgentMapPage() {
   return (
     <Row>
       <Col md={8}>
-        <NetworkGraph
-          intentList={intentList}
-          onSelectionChange={selectionChangeHandler}
-        />
+        <NetworkGraph onSelectionChange={selectionChangeHandler} />
       </Col>
       <Col>
         {selection?.type === "intent" && (
