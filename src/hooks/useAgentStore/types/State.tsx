@@ -25,6 +25,7 @@ export type IntentChangeList = IntentChange[];
 export type StateActions = {
   loadAgent: (data: File | ArrayBuffer) => Promise<void>;
   unloadAgent: () => void;
+  updateIntent: (intentFile: IntentListItem) => void;
   renameIntents: (intents: IntentToRename[]) => Promise<void>;
   removeInputContext: (
     intentName: string,
@@ -32,7 +33,7 @@ export type StateActions = {
   ) => Promise<void>;
   subscribeToIntentChanges: (
     changeHandler: (changes: IntentChangeList) => void
-  ) => void;
+  ) => () => void;
 };
 
 export type State = StateProperties & StateActions;

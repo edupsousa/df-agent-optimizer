@@ -1,25 +1,19 @@
 import * as d3 from "d3";
-import { SimulationLinkDatum, SimulationNodeDatum } from "d3";
-import useAgentMap from "hooks/useAgentMap";
+import useAgentGraph, {
+  AgentGraph,
+  LinkDatum,
+  NodeDatum,
+  NodeDatumType,
+} from "hooks/useAgentGraph";
 import useAgentStore from "hooks/useAgentStore";
-import { IntentListItem } from "hooks/useAgentStore/types";
 import useD3 from "hooks/useD3";
-import useNewGraph from "hooks/useNewGraph";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import styles from "styles/NetworkGraph.module.css";
-
-type NodeDatumType = "intent" | "inputContext";
 
 type NetworkGraphProps = {
   onSelectionChange: (nodeType: NodeDatumType, name: string) => void;
 };
 
-type NodeDatum = SimulationNodeDatum & {
-  id: string;
-  label: string;
-  type: NodeDatumType;
-};
-type LinkDatum = SimulationLinkDatum<NodeDatum>;
 type NodeType = d3.Selection<
   d3.BaseType | SVGCircleElement,
   NodeDatum,
@@ -36,63 +30,42 @@ type LabelType = d3.Selection<SVGTextElement, NodeDatum, SVGGElement, unknown>;
 
 export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
   const { subscribeToIntentChanges } = useAgentStore();
-  const [intentList, setIntentList] = useState<IntentListItem[]>([]);
   const selectedNode = useRef<NodeDatum | null>(null);
   const mouseOnNode = useRef<NodeDatum | null>(null);
-  const agentMap = useAgentMap(intentList);
-  const agentGraph = useNewGraph(agentMap);
+  const { graph, nodes, links, addIntent } = useAgentGraph();
 
   useEffect(() => {
-    subscribeToIntentChanges((changes) => {
-      console.log("go");
-      setIntentList((current) => {
-        let newList = current.slice();
-        changes.forEach((change) => {
-          if (change.change === "added") {
-            newList.push(change.intentFile);
-          } else if (change.change === "removed") {
-            newList = newList.filter(
-              (item) => item.filename !== change.intentFile.filename
-            );
-          } else if (change.change === "updated") {
-            const itemIndex = newList.findIndex(
-              (item) => item.filename === change.intentFile.filename
-            );
-            newList[itemIndex] = change.intentFile;
-          }
-        });
-        return newList;
+    return subscribeToIntentChanges((changes) => {
+      changes.forEach((change) => {
+        if (change.change === "added") {
+          addIntent(change.intentFile);
+        } else if (change.change === "removed") {
+          console.log(`removed ${change.intentFile.filename}`);
+        } else if (change.change === "updated") {
+          console.log(`updated ${change.intentFile.filename}`);
+        }
       });
     });
-  }, [subscribeToIntentChanges]);
+  }, [addIntent, nodes, subscribeToIntentChanges]);
 
   const renderNetwork = useCallback(
     (
       root: d3.Selection<HTMLDivElement, unknown, null, undefined>
     ): (() => void) => {
-      const nodesDatum: NodeDatum[] = mapNodes(agentGraph);
-      const linksDatum: LinkDatum[] = mapLinks(agentGraph);
-      const simulation = createSimulation(nodesDatum, linksDatum);
+      console.log("renderNetwork");
+      const simulation = createSimulation(nodes, links);
       const svg = createSVG(root);
       createMarkers(svg);
       const plotArea = createPlotArea(svg);
       applyZoomHandler(plotArea, svg);
-      const link: LinkType = createLinkElements(plotArea, linksDatum);
-      const node: NodeType = createNodeElements(
-        plotArea,
-        nodesDatum,
-        simulation
-      );
-      const label: LabelType = createLabelElements(
-        plotArea,
-        nodesDatum,
-        simulation
-      );
+      const link: LinkType = createLinkElements(plotArea, links);
+      const node: NodeType = createNodeElements(plotArea, nodes, simulation);
+      const label: LabelType = createLabelElements(plotArea, nodes, simulation);
 
       const highlightNodes = () =>
         updateHighlights(
           [selectedNode.current, mouseOnNode.current],
-          agentGraph,
+          graph,
           node,
           link,
           label
@@ -117,7 +90,7 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
 
       return cleanup(simulation, svg);
     },
-    [agentGraph, onSelectionChange]
+    [graph, links, nodes, onSelectionChange]
   );
 
   const container = useD3<HTMLDivElement>(renderNetwork);
@@ -147,7 +120,7 @@ function cleanup(
 
 function updateHighlights(
   selectedNodes: (NodeDatum | null)[],
-  agentGraph: ReturnType<typeof useNewGraph>,
+  agentGraph: AgentGraph,
   node: NodeType,
   link: LinkType,
   label: LabelType
@@ -181,17 +154,6 @@ function updateHighlights(
     (l: any) =>
       !(highlightLinksOf[l.source.id] || highlightLinksOf[l.target.id])
   );
-}
-
-function mapLinks(agentGraph: ReturnType<typeof useNewGraph>): LinkDatum[] {
-  return agentGraph.edges().map((edge) => ({ source: edge.v, target: edge.w }));
-}
-
-function mapNodes(agentGraph: ReturnType<typeof useNewGraph>): NodeDatum[] {
-  return agentGraph.nodes().map((id) => {
-    const n = agentGraph.node(id);
-    return { id, label: n.displayName, type: n.type };
-  });
 }
 
 function simulationTickHandler(
