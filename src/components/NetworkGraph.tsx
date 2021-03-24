@@ -14,12 +14,7 @@ type NetworkGraphProps = {
   onSelectionChange: (nodeType: NodeDatumType, name: string) => void;
 };
 
-type NodeType = d3.Selection<
-  d3.BaseType | SVGCircleElement,
-  NodeDatum,
-  SVGGElement,
-  unknown
->;
+type NodeType = d3.Selection<SVGCircleElement, NodeDatum, SVGGElement, unknown>;
 type LinkType = d3.Selection<
   d3.BaseType | SVGPathElement,
   LinkDatum,
@@ -32,21 +27,42 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
   const { subscribeToIntentChanges } = useAgentStore();
   const selectedNode = useRef<NodeDatum | null>(null);
   const mouseOnNode = useRef<NodeDatum | null>(null);
-  const { graph, nodes, links, addIntent } = useAgentGraph();
+  const { graph, nodes, links, addIntent, updateIntent } = useAgentGraph();
+  const old = useRef({ r: 0, nodes, links });
+
+  useEffect(() => {
+    console.log(
+      `render ${old.current.r++} nodes ${nodes.length} links ${links.length}`
+    );
+    if (nodes.length !== old.current.nodes.length)
+      console.log(`nodes.lenght ${old.current.nodes.length} > ${nodes.length}`);
+    if (nodes !== old.current.nodes) {
+      console.log("nodes ref changed");
+      old.current.nodes = nodes;
+    }
+    if (links.length !== old.current.links.length)
+      console.log(`links.lenght ${old.current.links.length} > ${links.length}`);
+    if (links !== old.current.links) {
+      console.log("links ref changed");
+      old.current.links = links;
+    }
+  });
 
   useEffect(() => {
     return subscribeToIntentChanges((changes) => {
       changes.forEach((change) => {
         if (change.change === "added") {
+          console.log(`added ${change.intentFile.filename}`);
           addIntent(change.intentFile);
         } else if (change.change === "removed") {
           console.log(`removed ${change.intentFile.filename}`);
         } else if (change.change === "updated") {
           console.log(`updated ${change.intentFile.filename}`);
+          updateIntent(change.intentFile);
         }
       });
     });
-  }, [addIntent, nodes, subscribeToIntentChanges]);
+  }, [addIntent, subscribeToIntentChanges, updateIntent]);
 
   const renderNetwork = useCallback(
     (
@@ -227,7 +243,8 @@ function createNodeElements(
     .attr("stroke", "#fff")
     .selectAll("circle")
     .data(nodes)
-    .join("circle")
+    .enter()
+    .append("circle")
     .attr("r", 8)
     .attr("fill", (d) => (d.type === "intent" ? "#7fc97f" : "#beaed4"))
     .style("opacity", 0.5)

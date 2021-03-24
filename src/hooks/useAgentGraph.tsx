@@ -1,5 +1,5 @@
 import { SimulationLinkDatum, SimulationNodeDatum } from "d3-force";
-import { Graph } from "graphlib";
+import { Edge, Graph } from "graphlib";
 import { useMemo } from "react";
 import { Intent, IntentListItem } from "./useAgentStore/types";
 
@@ -58,12 +58,12 @@ export default function useAgentGraph(): AgentGraphHookReturn {
     const state = { graph, nodes, links };
 
     const addIntent = (intentFile: IntentListItem) => {
-      const displayName = intentFile.intent.name;
-      const inputContexts = getInputContextNames(intentFile.intent);
-      const outputContexts = getOutputContexts(intentFile.intent);
-      const aliveOutputCtx = outputContexts
-        .filter(({ lifespan }) => lifespan > 0)
-        .map(({ name }) => name);
+      const {
+        displayName,
+        inputContexts,
+        outputContexts,
+        aliveOutputCtx,
+      } = parseIntentFile(intentFile);
       const intentNode = createIntentNode(
         state,
         displayName,
@@ -86,10 +86,87 @@ export default function useAgentGraph(): AgentGraphHookReturn {
     };
 
     const removeIntent = (intentFile: IntentListItem) => {};
-    const updateIntent = (intentFile: IntentListItem) => {};
+    const updateIntent = (intentFile: IntentListItem) => {
+      const {
+        displayName,
+        inputContexts,
+        outputContexts,
+        aliveOutputCtx,
+      } = parseIntentFile(intentFile);
+      const nodeName = getIntentNodeName(displayName);
+      const node = graph.node(nodeName) as IntentNodeLabel;
+      if (!inputContextsAreEqual(node, inputContexts)) {
+        removeInputContextNode(state, node);
+      }
+      if (!outputContextsAreEqual(node, outputContexts)) {
+      }
+    };
 
     return { graph, nodes, links, addIntent, removeIntent, updateIntent };
   }, []);
+}
+
+function removeNodeAndEdges(state: AgentGraphState, nodeName: string) {
+  const { graph } = state;
+  const inputCtxEdges = graph.nodeEdges(nodeName) || [];
+  inputCtxEdges.forEach((edge) => {
+    removeEdge(state, edge);
+  });
+  if ((graph.nodeEdges(nodeName) || []).length === 0) {
+    removeNode(state, nodeName);
+  }
+}
+
+function removeInputContextNode(state: AgentGraphState, node: IntentNodeLabel) {
+  const inputCtxNodeName = getInputContextNodeName(node.inputContexts);
+  removeNodeAndEdges(state, inputCtxNodeName);
+}
+
+function removeEdge(state: AgentGraphState, edge: Edge) {
+  const { graph, links } = state;
+  graph.removeEdge(edge);
+  const linkIndex = links.findIndex(
+    ({ source, target }) => source === edge.v && target === edge.w
+  );
+  links.splice(linkIndex, 1);
+}
+
+function removeNode(state: AgentGraphState, nodeName: string) {
+  const { graph, nodes } = state;
+  graph.removeNode(nodeName);
+  const nodeIndex = nodes.findIndex(({ id }) => id === nodeName);
+  nodes.splice(nodeIndex, 1);
+}
+
+function inputContextsAreEqual(node: IntentNodeLabel, inputContexts: string[]) {
+  return (
+    node.inputContexts.length === inputContexts.length &&
+    node.inputContexts.every((v, i) => v === inputContexts[i])
+  );
+}
+
+function outputContextsAreEqual(
+  node: IntentNodeLabel,
+  outputContexts: OutputContext[]
+) {
+  return (
+    node.outputContexts.length === outputContexts.length &&
+    node.outputContexts.every(
+      (v, i) =>
+        v.name === outputContexts[i].name &&
+        v.lifespan === outputContexts[i].lifespan
+    )
+  );
+}
+
+function parseIntentFile(intentFile: IntentListItem) {
+  const displayName = intentFile.intent.name;
+  const inputContexts = getInputContextNames(intentFile.intent);
+  const outputContexts = getOutputContexts(intentFile.intent);
+  const aliveOutputCtx = outputContexts
+    .filter(({ lifespan }) => lifespan > 0)
+    .map(({ name }) => name);
+  return { displayName, inputContexts, outputContexts, aliveOutputCtx };
 }
 
 function shouldLinkTo(otherNode: NodeLabel, aliveOutputCtx: string[]) {
@@ -165,7 +242,7 @@ function createIntentNode(
     inputContexts,
     outputContexts,
   };
-  const name = getNodeName(label.type, label.displayName);
+  const name = getIntentNodeName(displayName);
   if (!graph.hasNode(name)) {
     graph.setNode(name, label);
     addNodeDatum(nodes, name, label);
@@ -182,16 +259,26 @@ function addNodeDatum(nodes: NodeDatum[], id: string, node: NodeLabel) {
 }
 
 function getInputContextNames(intent: Intent): string[] {
-  return intent.contexts.map((ctx) => ctx.toLowerCase());
+  return intent.contexts.map((ctx) => ctx.toLowerCase()).sort();
 }
 
 function getOutputContexts(intent: Intent): OutputContext[] {
-  return intent.responses.flatMap((r) =>
-    r.affectedContexts.map(({ name, lifespan }) => ({
-      name: name.toLowerCase(),
-      lifespan,
-    }))
-  );
+  return intent.responses
+    .flatMap((r) =>
+      r.affectedContexts.map(({ name, lifespan }) => ({
+        name: name.toLowerCase(),
+        lifespan,
+      }))
+    )
+    .sort(({ name: a }, { name: b }) => (a > b ? 1 : a < b ? -1 : 0));
+}
+
+function getInputContextNodeName(contexts: string[]): string {
+  return getNodeName("inputContext", contexts.join(";"));
+}
+
+function getIntentNodeName(intentName: string): string {
+  return getNodeName("intent", intentName);
 }
 
 function createInputContextNode(
@@ -203,7 +290,7 @@ function createInputContextNode(
     displayName: contexts.join(";"),
     contexts,
   };
-  const name = getNodeName(label.type, label.displayName);
+  const name = getInputContextNodeName(contexts);
   if (!graph.hasNode(name)) {
     graph.setNode(name, label);
     addNodeDatum(nodes, name, label);
