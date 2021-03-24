@@ -125,9 +125,11 @@ function removeInputContextNode(state: AgentGraphState, node: IntentNodeLabel) {
 function removeEdge(state: AgentGraphState, edge: Edge) {
   const { graph, links } = state;
   graph.removeEdge(edge);
-  const linkIndex = links.findIndex(
-    ({ source, target }) => source === edge.v && target === edge.w
-  );
+  const linkIndex = links.findIndex(({ source, target }) => {
+    return (
+      (source as NodeDatum).id === edge.v && (target as NodeDatum).id === edge.w
+    );
+  });
   links.splice(linkIndex, 1);
 }
 

@@ -28,7 +28,6 @@ const intentChangesHandlerList: Record<
 
 function notifiyIntentChanges(changeList: IntentChangeList) {
   Object.values(intentChangesHandlerList).forEach((handler) => {
-    console.log(`notifying ${changeList.length} changes`);
     handler(changeList);
   });
 }

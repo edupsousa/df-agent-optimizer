@@ -6,7 +6,6 @@ import useAgentGraph, {
   NodeDatumType,
 } from "hooks/useAgentGraph";
 import useAgentStore from "hooks/useAgentStore";
-import useD3 from "hooks/useD3";
 import React, { useCallback, useEffect, useRef } from "react";
 import styles from "styles/NetworkGraph.module.css";
 
@@ -14,45 +13,56 @@ type NetworkGraphProps = {
   onSelectionChange: (nodeType: NodeDatumType, name: string) => void;
 };
 
-type NodeType = d3.Selection<SVGCircleElement, NodeDatum, SVGGElement, unknown>;
-type LinkType = d3.Selection<
+type DivElementSelection = d3.Selection<
+  HTMLDivElement,
+  unknown,
+  null,
+  undefined
+>;
+type SVGSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>;
+type PlotAreaSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
+type BaseElementSelection = d3.Selection<
+  d3.BaseType,
+  unknown,
+  SVGGElement,
+  unknown
+>;
+
+type NodeSelection = d3.Selection<
+  d3.BaseType | SVGCircleElement,
+  NodeDatum,
+  SVGGElement,
+  unknown
+>;
+
+type LinkSelection = d3.Selection<
   d3.BaseType | SVGPathElement,
   LinkDatum,
   SVGGElement,
   unknown
 >;
-type LabelType = d3.Selection<SVGTextElement, NodeDatum, SVGGElement, unknown>;
+
+type LabelSelection = d3.Selection<
+  d3.BaseType | SVGTextElement,
+  NodeDatum,
+  SVGGElement,
+  unknown
+>;
 
 export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
   const { subscribeToIntentChanges } = useAgentStore();
   const selectedNode = useRef<NodeDatum | null>(null);
   const mouseOnNode = useRef<NodeDatum | null>(null);
   const { graph, nodes, links, addIntent, updateIntent } = useAgentGraph();
-  const old = useRef({ r: 0, nodes, links });
-
-  useEffect(() => {
-    console.log(
-      `render ${old.current.r++} nodes ${nodes.length} links ${links.length}`
-    );
-    if (nodes.length !== old.current.nodes.length)
-      console.log(`nodes.lenght ${old.current.nodes.length} > ${nodes.length}`);
-    if (nodes !== old.current.nodes) {
-      console.log("nodes ref changed");
-      old.current.nodes = nodes;
-    }
-    if (links.length !== old.current.links.length)
-      console.log(`links.lenght ${old.current.links.length} > ${links.length}`);
-    if (links !== old.current.links) {
-      console.log("links ref changed");
-      old.current.links = links;
-    }
-  });
+  const container = useRef<HTMLDivElement>(null);
+  const updateData = useRef<
+    null | ((nodes: NodeDatum[], links: LinkDatum[]) => void)
+  >(null);
 
   useEffect(() => {
     return subscribeToIntentChanges((changes) => {
       changes.forEach((change) => {
         if (change.change === "added") {
-          console.log(`added ${change.intentFile.filename}`);
           addIntent(change.intentFile);
         } else if (change.change === "removed") {
           console.log(`removed ${change.intentFile.filename}`);
@@ -61,22 +71,31 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
           updateIntent(change.intentFile);
         }
       });
+      if (updateData.current) {
+        updateData.current(nodes, links);
+      }
     });
-  }, [addIntent, subscribeToIntentChanges, updateIntent]);
+  }, [addIntent, links, nodes, subscribeToIntentChanges, updateIntent]);
 
   const renderNetwork = useCallback(
-    (
-      root: d3.Selection<HTMLDivElement, unknown, null, undefined>
-    ): (() => void) => {
-      console.log("renderNetwork");
+    (root: DivElementSelection) => {
       const simulation = createSimulation(nodes, links);
       const svg = createSVG(root);
       createMarkers(svg);
       const plotArea = createPlotArea(svg);
       applyZoomHandler(plotArea, svg);
-      const link: LinkType = createLinkElements(plotArea, links);
-      const node: NodeType = createNodeElements(plotArea, nodes, simulation);
-      const label: LabelType = createLabelElements(plotArea, nodes, simulation);
+
+      const baseLink: BaseElementSelection = createLinkElements(plotArea);
+      const baseNode: BaseElementSelection = createNodeElements(plotArea);
+      const baseLabel: BaseElementSelection = createLabelElements(plotArea);
+
+      let link: LinkSelection = joinLinkElements(baseLink, links);
+      let label: LabelSelection = joinLabelElements(
+        baseLabel,
+        nodes,
+        simulation
+      );
+      let node: NodeSelection = joinNodeElements(baseNode, nodes, simulation);
 
       const highlightNodes = () =>
         updateHighlights(
@@ -104,29 +123,45 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
 
       simulation.on("tick", simulationTickHandler(node, link, label));
 
-      return cleanup(simulation, svg);
+      return {
+        cleanup: cleanup(simulation, svg),
+        joinData: (nodes: NodeDatum[], links: LinkDatum[]) => {
+          link = joinLinkElements(link, links);
+          node = joinNodeElements(node, nodes, simulation);
+          label = joinLabelElements(label, nodes, simulation);
+          simulation.nodes(nodes).alpha(1).restart();
+        },
+      };
     },
     [graph, links, nodes, onSelectionChange]
   );
 
-  const container = useD3<HTMLDivElement>(renderNetwork);
+  useEffect(() => {
+    if (container.current !== null) {
+      const { cleanup, joinData } = renderNetwork(d3.select(container.current));
+      updateData.current = joinData;
+      return cleanup;
+    }
+  }, [renderNetwork]);
 
   return (
-    <div
-      ref={container}
-      style={{
-        width: "100%",
-        height: "700px",
-        border: "1px solid lightgray",
-        overflow: "hidden",
-      }}
-    ></div>
+    <>
+      <div
+        ref={container}
+        style={{
+          width: "100%",
+          height: "700px",
+          border: "1px solid lightgray",
+          overflow: "hidden",
+        }}
+      ></div>
+    </>
   );
 }
 
 function cleanup(
   simulation: d3.Simulation<NodeDatum, LinkDatum>,
-  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>
+  svg: SVGSelection
 ): () => void {
   return () => {
     simulation.stop();
@@ -137,9 +172,9 @@ function cleanup(
 function updateHighlights(
   selectedNodes: (NodeDatum | null)[],
   agentGraph: AgentGraph,
-  node: NodeType,
-  link: LinkType,
-  label: LabelType
+  node: NodeSelection,
+  link: LinkSelection,
+  label: LabelSelection
 ) {
   const highlightedNodes: Record<string, boolean> = {};
   const highlightLinksOf: Record<string, boolean> = {};
@@ -173,9 +208,9 @@ function updateHighlights(
 }
 
 function simulationTickHandler(
-  node: NodeType,
-  link: LinkType,
-  label: LabelType
+  node: NodeSelection,
+  link: LinkSelection,
+  label: LabelSelection
 ): (this: d3.Simulation<NodeDatum, LinkDatum>) => void {
   return () => {
     node.attr("cx", (d) => d.x!).attr("cy", (d) => d.y!);
@@ -211,17 +246,23 @@ function linkArc(d: LinkDatum) {
 }
 
 function createLabelElements(
-  plotArea: d3.Selection<SVGGElement, unknown, null, undefined>,
-  nodes: NodeDatum[],
-  simulation: d3.Simulation<NodeDatum, LinkDatum>
-): LabelType {
-  return plotArea
+  plotArea: PlotAreaSelection
+): BaseElementSelection {
+  const baseLabel = plotArea
     .append("g")
     .attr("class", "labels")
-    .selectAll("text")
-    .data(nodes)
-    .enter()
-    .append("text")
+    .selectAll("text");
+  return baseLabel;
+}
+
+function joinLabelElements(
+  baseLabel: BaseElementSelection | LabelSelection,
+  nodes: NodeDatum[],
+  simulation: d3.Simulation<NodeDatum, LinkDatum>
+) {
+  return (baseLabel as LabelSelection)
+    .data(nodes, (d: any) => d.id)
+    .join("text")
     .attr("text-anchor", "right")
     .attr("dominant-baseline", "central")
     .style("font-size", "0.5em")
@@ -232,35 +273,44 @@ function createLabelElements(
     .call(drag(simulation) as any);
 }
 
-function createNodeElements(
-  plotArea: d3.Selection<SVGGElement, unknown, null, undefined>,
-  nodes: NodeDatum[],
-  simulation: d3.Simulation<NodeDatum, LinkDatum>
-): NodeType {
-  return plotArea
+function createNodeElements(plotArea: PlotAreaSelection): BaseElementSelection {
+  const baseNode = plotArea
     .append("g")
     .attr("stroke-width", 1)
     .attr("stroke", "#fff")
-    .selectAll("circle")
-    .data(nodes)
-    .enter()
-    .append("circle")
+    .selectAll("circle");
+  return baseNode;
+}
+
+function joinNodeElements(
+  baseNode: BaseElementSelection | NodeSelection,
+  nodes: NodeDatum[],
+  simulation: d3.Simulation<NodeDatum, LinkDatum>
+) {
+  return (baseNode as NodeSelection)
+    .data(nodes, (d: any) => d.id)
+    .join("circle")
     .attr("r", 8)
     .attr("fill", (d) => (d.type === "intent" ? "#7fc97f" : "#beaed4"))
     .style("opacity", 0.5)
     .call(drag(simulation) as any);
 }
 
-function createLinkElements(
-  plotArea: d3.Selection<SVGGElement, unknown, null, undefined>,
-  links: LinkDatum[]
-): LinkType {
-  return plotArea
+function createLinkElements(plotArea: PlotAreaSelection): BaseElementSelection {
+  const link = plotArea
     .append("g")
     .attr("fill", "none")
     .attr("stroke-width", 1)
-    .selectAll("path")
-    .data(links)
+    .selectAll("path");
+  return link;
+}
+
+function joinLinkElements(
+  link: BaseElementSelection | LinkSelection,
+  links: LinkDatum[]
+): LinkSelection {
+  return (link as LinkSelection)
+    .data(links, (d: any) => d.source.id + "-" + d.target.id)
     .join("path")
     .attr("stroke", (d) =>
       (d.target as NodeDatum).type === "intent" ? "#7fc97f" : "#beaed4"
@@ -269,9 +319,7 @@ function createLinkElements(
     .attr("marker-end", "url(#end)");
 }
 
-function createMarkers(
-  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>
-) {
+function createMarkers(svg: SVGSelection) {
   svg
     .append("defs")
     .selectAll("marker")
@@ -289,25 +337,18 @@ function createMarkers(
     .attr("fill", "#969696");
 }
 
-function applyZoomHandler(
-  g: d3.Selection<SVGGElement, unknown, null, undefined>,
-  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>
-) {
+function applyZoomHandler(g: PlotAreaSelection, svg: SVGSelection) {
   const zoomHandler = d3.zoom<SVGSVGElement, unknown>().on("zoom", (event) => {
     g.attr("transform", event.transform);
   });
   zoomHandler(svg);
 }
 
-function createPlotArea(
-  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>
-) {
+function createPlotArea(svg: SVGSelection) {
   return svg.append("g");
 }
 
-function createSVG(
-  root: d3.Selection<HTMLDivElement, unknown, null, undefined>
-): d3.Selection<SVGSVGElement, unknown, null, undefined> {
+function createSVG(root: DivElementSelection): SVGSelection {
   const { width, height } = root.node()!.getBoundingClientRect();
   return root
     .append("svg")
@@ -321,6 +362,7 @@ function createSimulation(
 ): d3.Simulation<NodeDatum, LinkDatum> {
   return d3
     .forceSimulation<NodeDatum, LinkDatum>(nodes)
+    .force("charge", d3.forceManyBody().strength(-150))
     .force(
       "link",
       d3
@@ -328,7 +370,6 @@ function createSimulation(
         .id((d) => d.id)
         .distance(100)
     )
-    .force("charge", d3.forceManyBody().strength(-150))
     .force("x", d3.forceX())
     .force("y", d3.forceY());
 }
