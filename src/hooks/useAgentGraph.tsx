@@ -77,21 +77,9 @@ export default function useAgentGraph(): AgentGraphHookReturn {
       }
       graph.nodes().forEach((otherNodeName) => {
         const otherNode = graph.node(otherNodeName);
-        if (
-          otherNode.type === "intent" &&
-          inputCtxNode &&
-          otherNode.outputContexts.filter(
-            ({ lifespan, name }) => lifespan > 0 && inputContexts.includes(name)
-          ).length > 0
-        ) {
+        if (shouldLinkFrom(otherNode, inputCtxNode, inputContexts)) {
           createEdge(state, otherNodeName, inputCtxNode, "output");
-        } else if (
-          otherNode.type === "inputContext" &&
-          aliveOutputCtx.length > 0 &&
-          otherNode.contexts.filter((ctxName) =>
-            aliveOutputCtx.includes(ctxName)
-          ).length > 0
-        ) {
+        } else if (shouldLinkTo(otherNode, aliveOutputCtx)) {
           createEdge(state, intentNode, otherNodeName, "output");
         }
       });
@@ -102,6 +90,47 @@ export default function useAgentGraph(): AgentGraphHookReturn {
 
     return { graph, nodes, links, addIntent, removeIntent, updateIntent };
   }, []);
+}
+
+function shouldLinkTo(otherNode: NodeLabel, aliveOutputCtx: string[]) {
+  return (
+    otherNode.type === "inputContext" &&
+    aliveOutputCtx.length > 0 &&
+    hasInputCtxIntersection(otherNode, aliveOutputCtx)
+  );
+}
+
+function shouldLinkFrom(
+  otherNode: NodeLabel,
+  inputCtxNode: string,
+  inputContexts: string[]
+) {
+  return (
+    otherNode.type === "intent" &&
+    inputCtxNode &&
+    hasOutputCtxIntersection(otherNode, inputContexts)
+  );
+}
+
+function hasInputCtxIntersection(
+  otherNode: InputContextNodeLabel,
+  aliveOutputCtx: string[]
+) {
+  return (
+    otherNode.contexts.filter((ctxName) => aliveOutputCtx.includes(ctxName))
+      .length > 0
+  );
+}
+
+function hasOutputCtxIntersection(
+  otherNode: IntentNodeLabel,
+  inputContexts: string[]
+) {
+  return (
+    otherNode.outputContexts.filter(
+      ({ lifespan, name }) => lifespan > 0 && inputContexts.includes(name)
+    ).length > 0
+  );
 }
 
 function getNodeName(type: NodeLabel["type"], label: string) {
