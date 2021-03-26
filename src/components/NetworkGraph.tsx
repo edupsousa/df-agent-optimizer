@@ -21,29 +21,23 @@ type DivElementSelection = d3.Selection<
 >;
 type SVGSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>;
 type PlotAreaSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
-type BaseElementSelection = d3.Selection<
-  d3.BaseType,
-  unknown,
-  SVGGElement,
-  unknown
->;
 
 type NodeSelection = d3.Selection<
-  d3.BaseType | SVGCircleElement,
+  SVGCircleElement,
   NodeDatum,
   SVGGElement,
   unknown
 >;
 
 type LinkSelection = d3.Selection<
-  d3.BaseType | SVGPathElement,
+  SVGPathElement,
   LinkDatum,
   SVGGElement,
   unknown
 >;
 
 type LabelSelection = d3.Selection<
-  d3.BaseType | SVGTextElement,
+  SVGTextElement,
   NodeDatum,
   SVGGElement,
   unknown
@@ -79,34 +73,28 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
 
   const renderNetwork = useCallback(
     (root: DivElementSelection) => {
-      const simulation = createSimulation(nodes, links);
       const svg = createSVG(root);
       createMarkers(svg);
       const plotArea = createPlotArea(svg);
       applyZoomHandler(plotArea, svg);
 
-      const baseLink: BaseElementSelection = createLinkElements(plotArea);
-      const baseNode: BaseElementSelection = createNodeElements(plotArea);
-      const baseLabel: BaseElementSelection = createLabelElements(plotArea);
+      createLinkElements(plotArea);
+      createNodeElements(plotArea);
+      createLabelElements(plotArea);
 
-      let link: LinkSelection = joinLinkElements(baseLink, links);
-      let label: LabelSelection = joinLabelElements(
-        baseLabel,
-        nodes,
-        simulation
-      );
-      let node: NodeSelection = joinNodeElements(baseNode, nodes, simulation);
+      const simulation = createSimulation(plotArea, nodes, links);
+      joinLinkElements(plotArea, links);
+      joinLabelElements(plotArea, nodes, simulation);
+      joinNodeElements(plotArea, nodes, simulation);
 
       const highlightNodes = () =>
         updateHighlights(
           [selectedNode.current, mouseOnNode.current],
           graph,
-          node,
-          link,
-          label
+          plotArea
         );
 
-      node
+      selectNodeElements(plotArea)
         .on("click", (ev, d) => {
           selectedNode.current = d;
           highlightNodes();
@@ -121,26 +109,13 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
           highlightNodes();
         });
 
-      simulation.on("tick", simulationTickHandler(node, link, label));
-
       return {
         cleanup: cleanup(simulation, svg),
         joinData: (nodes: NodeDatum[], links: LinkDatum[]) => {
-          node = joinNodeElements(node, nodes, simulation);
-          label = joinLabelElements(label, nodes, simulation);
-          link = joinLinkElements(link, links);
-          simulation
-            .nodes(nodes)
-            .force(
-              "link",
-              d3
-                .forceLink<NodeDatum, LinkDatum>(links)
-                .id((d) => d.id)
-                .distance(100)
-            )!
-            .on("tick", simulationTickHandler(node, link, label))
-            .alpha(1)
-            .restart();
+          const simulation = createSimulation(plotArea, nodes, links);
+          joinNodeElements(plotArea, nodes, simulation);
+          joinLabelElements(plotArea, nodes, simulation);
+          joinLinkElements(plotArea, links);
         },
       };
     },
@@ -183,10 +158,11 @@ function cleanup(
 function updateHighlights(
   selectedNodes: (NodeDatum | null)[],
   agentGraph: AgentGraph,
-  node: NodeSelection,
-  link: LinkSelection,
-  label: LabelSelection
+  plotArea: PlotAreaSelection
 ) {
+  const node = selectNodeElements(plotArea);
+  const link = selectLinkElements(plotArea);
+  const label = selectLabelElements(plotArea);
   const highlightedNodes: Record<string, boolean> = {};
   const highlightLinksOf: Record<string, boolean> = {};
   let emptySelection = true;
@@ -225,15 +201,14 @@ function updateHighlights(
 }
 
 function simulationTickHandler(
-  node: NodeSelection,
-  link: LinkSelection,
-  label: LabelSelection
+  plotArea: PlotAreaSelection
 ): (this: d3.Simulation<NodeDatum, LinkDatum>) => void {
   return () => {
-    node.attr("cx", (d) => d.x!).attr("cy", (d) => d.y!);
-
-    link.attr("d", linkArc);
-    label
+    selectNodeElements(plotArea)
+      .attr("cx", (d) => d.x!)
+      .attr("cy", (d) => d.y!);
+    selectLinkElements(plotArea).attr("d", linkArc);
+    selectLabelElements(plotArea)
       .attr("x", (d) => {
         return d.x! + 10;
       })
@@ -262,22 +237,16 @@ function linkArc(d: LinkDatum) {
 `;
 }
 
-function createLabelElements(
-  plotArea: PlotAreaSelection
-): BaseElementSelection {
-  const baseLabel = plotArea
-    .append("g")
-    .attr("class", "labels")
-    .selectAll("text");
-  return baseLabel;
+function createLabelElements(plotArea: PlotAreaSelection) {
+  plotArea.append("g").attr("class", "labels");
 }
 
 function joinLabelElements(
-  baseLabel: BaseElementSelection | LabelSelection,
+  plotArea: PlotAreaSelection,
   nodes: NodeDatum[],
   simulation: d3.Simulation<NodeDatum, LinkDatum>
 ) {
-  return (baseLabel as LabelSelection)
+  selectLabelElements(plotArea)
     .data(nodes, (d: any) => d.id)
     .join("text")
     .attr("text-anchor", "right")
@@ -290,21 +259,24 @@ function joinLabelElements(
     .call(drag(simulation) as any);
 }
 
-function createNodeElements(plotArea: PlotAreaSelection): BaseElementSelection {
-  const baseNode = plotArea
+function selectLabelElements(plotArea: PlotAreaSelection) {
+  return plotArea.select("g.labels").selectAll("text") as LabelSelection;
+}
+
+function createNodeElements(plotArea: PlotAreaSelection) {
+  plotArea
     .append("g")
+    .attr("class", "nodes")
     .attr("stroke-width", 1)
-    .attr("stroke", "#fff")
-    .selectAll("circle");
-  return baseNode;
+    .attr("stroke", "#fff");
 }
 
 function joinNodeElements(
-  baseNode: BaseElementSelection | NodeSelection,
+  plotArea: PlotAreaSelection,
   nodes: NodeDatum[],
   simulation: d3.Simulation<NodeDatum, LinkDatum>
 ) {
-  return (baseNode as NodeSelection)
+  selectNodeElements(plotArea)
     .data(nodes, (d: any) => d.id)
     .join("circle")
     .attr("r", 8)
@@ -313,20 +285,20 @@ function joinNodeElements(
     .call(drag(simulation) as any);
 }
 
-function createLinkElements(plotArea: PlotAreaSelection): BaseElementSelection {
-  const link = plotArea
-    .append("g")
-    .attr("fill", "none")
-    .attr("stroke-width", 1)
-    .selectAll("path");
-  return link;
+function selectNodeElements(plotArea: PlotAreaSelection) {
+  return plotArea.select("g.nodes").selectAll("circle") as NodeSelection;
 }
 
-function joinLinkElements(
-  link: BaseElementSelection | LinkSelection,
-  links: LinkDatum[]
-): LinkSelection {
-  return (link as LinkSelection)
+function createLinkElements(plotArea: PlotAreaSelection) {
+  plotArea
+    .append("g")
+    .attr("class", "links")
+    .attr("fill", "none")
+    .attr("stroke-width", 1);
+}
+
+function joinLinkElements(plotArea: PlotAreaSelection, links: LinkDatum[]) {
+  selectLinkElements(plotArea)
     .data(links, (d: any) => d.source.id + "-" + d.target.id)
     .join("path")
     .attr("stroke", (d) =>
@@ -334,6 +306,10 @@ function joinLinkElements(
     )
     .style("opacity", 0.5)
     .attr("marker-end", "url(#end)");
+}
+
+function selectLinkElements(plotArea: PlotAreaSelection) {
+  return plotArea.select("g.links").selectAll("path") as LinkSelection;
 }
 
 function createMarkers(svg: SVGSelection) {
@@ -374,6 +350,7 @@ function createSVG(root: DivElementSelection): SVGSelection {
 }
 
 function createSimulation(
+  plotArea: PlotAreaSelection,
   nodes: NodeDatum[],
   links: LinkDatum[]
 ): d3.Simulation<NodeDatum, LinkDatum> {
@@ -388,7 +365,8 @@ function createSimulation(
         .distance(100)
     )
     .force("x", d3.forceX())
-    .force("y", d3.forceY());
+    .force("y", d3.forceY())
+    .on("tick", simulationTickHandler(plotArea));
 }
 
 function drag(simulation: d3.Simulation<NodeDatum, LinkDatum>) {
