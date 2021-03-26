@@ -44,11 +44,11 @@ type LabelSelection = d3.Selection<
 >;
 
 type GraphSimulation = d3.Simulation<NodeDatum, LinkDatum>;
+type NodeRef = { selected?: NodeDatum; mouseOver?: NodeDatum };
 
 export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
   const { subscribeToIntentChanges } = useAgentStore();
-  const selectedNode = useRef<NodeDatum | null>(null);
-  const mouseOnNode = useRef<NodeDatum | null>(null);
+  const nodeRef = useRef<NodeRef>({});
   const { graph, nodes, links, addIntent, updateIntent } = useAgentGraph();
   const container = useRef<HTMLDivElement>(null);
   const updateData = useRef<
@@ -90,24 +90,24 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
       joinNodeElements(plotArea, nodes, simulation);
 
       const highlightNodes = () =>
-        updateHighlights(
-          [selectedNode.current, mouseOnNode.current],
-          graph,
-          plotArea
-        );
+        updateHighlights(nodeRef.current, graph, plotArea);
 
       selectNodeElements(plotArea)
         .on("click", (ev, d) => {
-          selectedNode.current = d;
+          if (nodeRef.current.selected === d) {
+            nodeRef.current.selected = undefined;
+          } else {
+            nodeRef.current.selected = d;
+          }
           highlightNodes();
           onSelectionChange(d.type, d.label);
         })
         .on("mouseenter", (ev, d) => {
-          mouseOnNode.current = d;
+          nodeRef.current.mouseOver = d;
           highlightNodes();
         })
         .on("mouseleave", (ev, d) => {
-          mouseOnNode.current = null;
+          nodeRef.current.mouseOver = undefined;
           highlightNodes();
         });
 
@@ -157,7 +157,7 @@ function cleanup(simulation: GraphSimulation, svg: SVGSelection): () => void {
 }
 
 function updateHighlights(
-  selectedNodes: (NodeDatum | null)[],
+  nodes: NodeRef,
   agentGraph: AgentGraph,
   plotArea: PlotAreaSelection
 ) {
@@ -178,9 +178,12 @@ function updateHighlights(
     }
   };
 
-  selectedNodes
-    .filter((n): n is NodeDatum => n !== null)
-    .forEach(({ id }) => addNodeAndNeighbors(id));
+  if (nodes.selected) {
+    addNodeAndNeighbors(nodes.selected.id);
+  }
+  if (nodes.mouseOver) {
+    addNodeAndNeighbors(nodes.mouseOver.id);
+  }
 
   node.classed(styles.hightlighted, (n) => highlightedNodes[n.id]);
   label.classed(styles.highlighted, (n) => highlightedNodes[n.id]);
