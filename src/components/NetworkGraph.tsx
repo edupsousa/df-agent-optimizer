@@ -126,10 +126,21 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
       return {
         cleanup: cleanup(simulation, svg),
         joinData: (nodes: NodeDatum[], links: LinkDatum[]) => {
-          link = joinLinkElements(link, links);
           node = joinNodeElements(node, nodes, simulation);
           label = joinLabelElements(label, nodes, simulation);
-          simulation.nodes(nodes).alpha(1).restart();
+          link = joinLinkElements(link, links);
+          simulation
+            .nodes(nodes)
+            .force(
+              "link",
+              d3
+                .forceLink<NodeDatum, LinkDatum>(links)
+                .id((d) => d.id)
+                .distance(100)
+            )!
+            .on("tick", simulationTickHandler(node, link, label))
+            .alpha(1)
+            .restart();
         },
       };
     },
@@ -178,8 +189,10 @@ function updateHighlights(
 ) {
   const highlightedNodes: Record<string, boolean> = {};
   const highlightLinksOf: Record<string, boolean> = {};
+  let emptySelection = true;
 
   const addNodeAndNeighbors = (id: string) => {
+    emptySelection = false;
     highlightLinksOf[id] = true;
     highlightedNodes[id] = true;
     const neighbors = agentGraph.neighbors(id);
@@ -198,11 +211,15 @@ function updateHighlights(
     styles.highlighted,
     (l: any) => highlightLinksOf[l.source.id] || highlightLinksOf[l.target.id]
   );
-  node.classed(styles.faded, (n) => !highlightedNodes[n.id]);
-  label.classed(styles.faded, (n) => !highlightedNodes[n.id]);
+  node.classed(styles.faded, (n) => !emptySelection && !highlightedNodes[n.id]);
+  label.classed(
+    styles.faded,
+    (n) => !emptySelection && !highlightedNodes[n.id]
+  );
   link.classed(
     styles.faded,
     (l: any) =>
+      !emptySelection &&
       !(highlightLinksOf[l.source.id] || highlightLinksOf[l.target.id])
   );
 }

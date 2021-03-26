@@ -1,5 +1,5 @@
 import { SimulationLinkDatum, SimulationNodeDatum } from "d3-force";
-import { Edge, Graph } from "graphlib";
+import { Graph } from "graphlib";
 import { useMemo } from "react";
 import { Intent, IntentListItem } from "./useAgentStore/types";
 
@@ -80,7 +80,7 @@ export default function useAgentGraph(): AgentGraphHookReturn {
         if (shouldLinkFrom(otherNode, inputCtxNode, inputContexts)) {
           createEdge(state, otherNodeName, inputCtxNode, "output");
         } else if (shouldLinkTo(otherNode, aliveOutputCtx)) {
-          createEdge(state, intentNode, otherNodeName, "output");
+          createEdge(state, intentNode, otherNodeName, "input");
         }
       });
     };
@@ -93,12 +93,26 @@ export default function useAgentGraph(): AgentGraphHookReturn {
         outputContexts,
         aliveOutputCtx,
       } = parseIntentFile(intentFile);
-      const nodeName = getIntentNodeName(displayName);
-      const node = graph.node(nodeName) as IntentNodeLabel;
-      if (!inputContextsAreEqual(node, inputContexts)) {
-        removeInputContextNode(state, node);
+      const intentNodeName = getIntentNodeName(displayName);
+      const intentNode = graph.node(intentNodeName) as IntentNodeLabel;
+      if (!inputContextsAreEqual(intentNode, inputContexts)) {
+        const inputNodeName = getInputContextNodeName(intentNode.inputContexts);
+        removeEdge(state, inputNodeName, intentNodeName);
+        if ((graph.outEdges(inputNodeName) || []).length === 0) {
+          removeNodeAndEdges(state, inputNodeName);
+        }
+        if (inputContexts.length > 0) {
+          const inputCtxNode = createInputContextNode(state, inputContexts);
+          createEdge(state, inputCtxNode, intentNodeName, "input");
+          graph.nodes().forEach((otherNodeName) => {
+            const otherNode = graph.node(otherNodeName);
+            if (shouldLinkFrom(otherNode, inputCtxNode, inputContexts)) {
+              createEdge(state, otherNodeName, inputCtxNode, "output");
+            }
+          });
+        }
       }
-      if (!outputContextsAreEqual(node, outputContexts)) {
+      if (!outputContextsAreEqual(intentNode, outputContexts)) {
       }
     };
 
@@ -108,27 +122,20 @@ export default function useAgentGraph(): AgentGraphHookReturn {
 
 function removeNodeAndEdges(state: AgentGraphState, nodeName: string) {
   const { graph } = state;
-  const inputCtxEdges = graph.nodeEdges(nodeName) || [];
-  inputCtxEdges.forEach((edge) => {
-    removeEdge(state, edge);
+  const edges = graph.nodeEdges(nodeName) || [];
+  edges.forEach((edge) => {
+    removeEdge(state, edge.v, edge.w);
   });
   if ((graph.nodeEdges(nodeName) || []).length === 0) {
     removeNode(state, nodeName);
   }
 }
 
-function removeInputContextNode(state: AgentGraphState, node: IntentNodeLabel) {
-  const inputCtxNodeName = getInputContextNodeName(node.inputContexts);
-  removeNodeAndEdges(state, inputCtxNodeName);
-}
-
-function removeEdge(state: AgentGraphState, edge: Edge) {
+function removeEdge(state: AgentGraphState, from: string, to: string) {
   const { graph, links } = state;
-  graph.removeEdge(edge);
+  graph.removeEdge(from, to);
   const linkIndex = links.findIndex(({ source, target }) => {
-    return (
-      (source as NodeDatum).id === edge.v && (target as NodeDatum).id === edge.w
-    );
+    return (source as NodeDatum).id === from && (target as NodeDatum).id === to;
   });
   links.splice(linkIndex, 1);
 }
