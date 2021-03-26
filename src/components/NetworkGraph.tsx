@@ -43,6 +43,8 @@ type LabelSelection = d3.Selection<
   unknown
 >;
 
+type GraphSimulation = d3.Simulation<NodeDatum, LinkDatum>;
+
 export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
   const { subscribeToIntentChanges } = useAgentStore();
   const selectedNode = useRef<NodeDatum | null>(null);
@@ -112,7 +114,9 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
       return {
         cleanup: cleanup(simulation, svg),
         joinData: (nodes: NodeDatum[], links: LinkDatum[]) => {
-          const simulation = createSimulation(plotArea, nodes, links);
+          createSimulation(plotArea, nodes, links, simulation)
+            .alpha(1)
+            .restart();
           joinNodeElements(plotArea, nodes, simulation);
           joinLabelElements(plotArea, nodes, simulation);
           joinLinkElements(plotArea, links);
@@ -145,10 +149,7 @@ export default function NetworkGraph({ onSelectionChange }: NetworkGraphProps) {
   );
 }
 
-function cleanup(
-  simulation: d3.Simulation<NodeDatum, LinkDatum>,
-  svg: SVGSelection
-): () => void {
+function cleanup(simulation: GraphSimulation, svg: SVGSelection): () => void {
   return () => {
     simulation.stop();
     svg.remove();
@@ -202,7 +203,7 @@ function updateHighlights(
 
 function simulationTickHandler(
   plotArea: PlotAreaSelection
-): (this: d3.Simulation<NodeDatum, LinkDatum>) => void {
+): (this: GraphSimulation) => void {
   return () => {
     selectNodeElements(plotArea)
       .attr("cx", (d) => d.x!)
@@ -244,7 +245,7 @@ function createLabelElements(plotArea: PlotAreaSelection) {
 function joinLabelElements(
   plotArea: PlotAreaSelection,
   nodes: NodeDatum[],
-  simulation: d3.Simulation<NodeDatum, LinkDatum>
+  simulation: GraphSimulation
 ) {
   selectLabelElements(plotArea)
     .data(nodes, (d: any) => d.id)
@@ -274,7 +275,7 @@ function createNodeElements(plotArea: PlotAreaSelection) {
 function joinNodeElements(
   plotArea: PlotAreaSelection,
   nodes: NodeDatum[],
-  simulation: d3.Simulation<NodeDatum, LinkDatum>
+  simulation: GraphSimulation
 ) {
   selectNodeElements(plotArea)
     .data(nodes, (d: any) => d.id)
@@ -352,10 +353,13 @@ function createSVG(root: DivElementSelection): SVGSelection {
 function createSimulation(
   plotArea: PlotAreaSelection,
   nodes: NodeDatum[],
-  links: LinkDatum[]
-): d3.Simulation<NodeDatum, LinkDatum> {
-  return d3
-    .forceSimulation<NodeDatum, LinkDatum>(nodes)
+  links: LinkDatum[],
+  simulation?: GraphSimulation
+): GraphSimulation {
+  return (simulation
+    ? simulation.nodes(nodes)
+    : d3.forceSimulation<NodeDatum, LinkDatum>(nodes)
+  )
     .force("charge", d3.forceManyBody().strength(-150))
     .force(
       "link",
